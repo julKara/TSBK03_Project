@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\OpenGLApplication\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|solutionrelative:OpenGLApplication\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Main.cpp",
+              "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\OpenGLApplication\\Main.cpp",
+              "RelativeDocumentMoniker": "OpenGLApplication\\Main.cpp",
+              "ToolTip": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\OpenGLApplication\\Main.cpp",
+              "RelativeToolTip": "OpenGLApplication\\Main.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-11-22T21:27:01.755Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
