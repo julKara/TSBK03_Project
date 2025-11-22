@@ -1,9 +1,9 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\",
+  "WorkspaceRootPath": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\OpenGLApplication\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "AbsoluteMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|solutionrelative:OpenGLApplication\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
@@ -20,11 +20,11 @@
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "Main.cpp",
-              "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\OpenGLApplication\\Main.cpp",
+              "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\Main.cpp",
               "RelativeDocumentMoniker": "OpenGLApplication\\Main.cpp",
-              "ToolTip": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\OpenGLSetup\\OpenGLApplication\\OpenGLApplication\\Main.cpp",
+              "ToolTip": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\Main.cpp",
               "RelativeToolTip": "OpenGLApplication\\Main.cpp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAkAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2025-11-22T21:27:01.755Z",
               "EditorCaption": ""
