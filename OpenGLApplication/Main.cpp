@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <glew.h>
 #include <glut.h>
+#include <assimp/Importer.hpp>	// Test to see if assimp headers work
 
 int main(int argc, char* argv[])
 {
