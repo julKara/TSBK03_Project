@@ -5,6 +5,15 @@
     {
       "AbsoluteMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|solutionrelative:OpenGLApplication\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\tutorial25_youtube\\assimp_sandbox.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\Include\\ogldev_util.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\Common\\ogldev_util.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
   "DocumentGroupContainers": [
@@ -24,9 +33,48 @@
               "RelativeDocumentMoniker": "OpenGLApplication\\Main.cpp",
               "ToolTip": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\Main.cpp",
               "RelativeToolTip": "OpenGLApplication\\Main.cpp",
-              "ViewState": "AgIAAGMAAAAAAAAAAAAAAH0AAAAlAAAAAAAAAA==",
+              "ViewState": "AgIAAMYAAAAAAAAAAAAAANkAAAAvAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2025-11-22T21:27:01.755Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "assimp_sandbox.cpp",
+              "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\tutorial25_youtube\\assimp_sandbox.cpp",
+              "RelativeDocumentMoniker": "..\\ogldev\\tutorial25_youtube\\assimp_sandbox.cpp",
+              "ToolTip": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\tutorial25_youtube\\assimp_sandbox.cpp",
+              "RelativeToolTip": "..\\ogldev\\tutorial25_youtube\\assimp_sandbox.cpp",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAowD0AAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-12-17T22:24:49.724Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ogldev_util.cpp",
+              "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\Common\\ogldev_util.cpp",
+              "RelativeDocumentMoniker": "..\\ogldev\\Common\\ogldev_util.cpp",
+              "ToolTip": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\Common\\ogldev_util.cpp",
+              "RelativeToolTip": "..\\ogldev\\Common\\ogldev_util.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACsBAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-12-17T22:37:17.422Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ogldev_util.h",
+              "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\Include\\ogldev_util.h",
+              "RelativeDocumentMoniker": "..\\ogldev\\Include\\ogldev_util.h",
+              "ToolTip": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\ogldev\\Include\\ogldev_util.h",
+              "RelativeToolTip": "..\\ogldev\\Include\\ogldev_util.h",
+              "ViewState": "AgIAAAcAAAAAAAAAAAAowBwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2025-12-17T22:39:09.196Z",
               "EditorCaption": ""
             }
           ]
