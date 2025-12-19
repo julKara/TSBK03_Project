@@ -10,10 +10,32 @@
 #include <map>
 #include <assert.h>
 
+// Others from Include - folder
+#include <glew.h>
+#include <GLFW/glfw3.h>
+
+
+// Self-made Headers
+#include "input_controller.h"
+#include "shader.h"
+
+
 // CONSTANTS & MACROS
+float gLastTime = 0.0f;
+
 #define MAX_NUM_BONES_PER_VERTEX 4  // ADJUSTABLE
 
 #define ARRAY_SIZE_IN_ELEMENTS(a) (sizeof(a)/sizeof(a[0]))  //
+
+// INSTANCES of self-made classes
+InputController input;
+Shader* weightShader = nullptr;
+
+
+// INSTANCES of other classes
+GLFWwindow* gWindow = nullptr;
+
+
 
 // ------------------------- STRUCTURES -------------------------
 
@@ -208,6 +230,37 @@ bool loadModel(const std::string& filename)
 // ------------------------- MAIN -------------------------
 int main()
 {
+    if (!glfwInit()) {
+        std::cerr << "Failed to init GLFW\n";
+        return -1;
+    }
+
+    gWindow = glfwCreateWindow(1280, 720, "Bone Weight Viewer", nullptr, nullptr);
+    if (!gWindow) {
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwMakeContextCurrent(gWindow);
+
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        std::cerr << "Failed to init GLEW\n";
+        return -1;
+    }
+
+    // Test openGL
+    /*const GLubyte* version = glGetString(GL_VERSION);
+    std::cout << "OpenGL version: " << version << std::endl;*/
+    
+    weightShader = new Shader(
+        "../Shaders/weight_visualization.vs",
+        "../Shaders/weight_visualization.fs"
+    );
+
+    glEnable(GL_DEPTH_TEST);
+
+    // Load model -------------------------
     // Change this to load any model in the Models folder (can handle "any" file-types)
     std::string modelName = "boblampclean.md5mesh";  // Model name: WRITE HERE
 
@@ -224,5 +277,38 @@ int main()
         return 1;
     }
 
+    while (!glfwWindowShouldClose(gWindow)) {
+
+        float currentTime = (float)glfwGetTime();
+        float deltaTime = currentTime - gLastTime;
+        gLastTime = currentTime;
+
+        glfwPollEvents();
+        input.Update(deltaTime);
+
+        int width, height;
+        glfwGetFramebufferSize(gWindow, &width, &height);
+        float aspect = (float)width / (float)height;
+
+        glViewport(0, 0, width, height);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glm::mat4 modelMatrix(1.0f);
+
+        glm::mat4 MVP =
+            input.GetCamera().GetProjectionMatrix(aspect) *
+            input.GetCamera().GetViewMatrix() *
+            modelMatrix;
+
+        weightShader->Use();
+        weightShader->SetMat4("MVP", MVP);
+        weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
+
+        // Draw call will go here
+
+        glfwSwapBuffers(gWindow);
+    }
+
+    glfwTerminate();
     return 0;
 }
