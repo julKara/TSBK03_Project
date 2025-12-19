@@ -23,16 +23,16 @@
       "RelativeMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|solutionrelative:OpenGLApplication\\input_controller.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|C:\\USERS\\JULIA\\DOCUMENTS\\SCHOOL\\TSBK03 TEKNIK SPEL\\TSBK03_PROJECT\\INCLUDE\\GLEW.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|solutionrelative:INCLUDE\\GLEW.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\camera.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|solutionrelative:OpenGLApplication\\camera.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\camera.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{18A922F0-B141-42B7-AEE5-F77142409E4C}|OpenGLApplication\\OpenGLApplication.vcxproj|solutionrelative:OpenGLApplication\\camera.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\Include\\glew.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Include\\glew.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
   "DocumentGroupContainers": [
@@ -54,8 +54,7 @@
               "RelativeToolTip": "OpenGLApplication\\shader.cpp",
               "ViewState": "AgIAAAMAAAAAAAAAAAAAABEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2025-12-19T20:35:03.905Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-19T20:35:03.905Z"
             },
             {
               "$type": "Document",
@@ -67,12 +66,11 @@
               "RelativeToolTip": "OpenGLApplication\\shader.h",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2025-12-19T20:34:37.499Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-19T20:34:37.499Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "glew.h",
               "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\Include\\glew.h",
               "RelativeDocumentMoniker": "Include\\glew.h",
@@ -80,8 +78,7 @@
               "RelativeToolTip": "Include\\glew.h",
               "ViewState": "AgIAAD4PAAAAAAAAAAAMwFMPAACIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2025-12-19T20:26:52.57Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-19T20:26:52.57Z"
             },
             {
               "$type": "Document",
@@ -93,8 +90,7 @@
               "RelativeToolTip": "OpenGLApplication\\input_controller.cpp",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAjAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2025-12-19T00:28:48.813Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-19T00:28:48.813Z"
             },
             {
               "$type": "Document",
@@ -106,12 +102,11 @@
               "RelativeToolTip": "OpenGLApplication\\input_controller.h",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2025-12-19T00:28:35.935Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-19T00:28:35.935Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 5,
               "Title": "camera.cpp",
               "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\camera.cpp",
               "RelativeDocumentMoniker": "OpenGLApplication\\camera.cpp",
@@ -123,7 +118,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 6,
               "Title": "camera.h",
               "DocumentMoniker": "C:\\Users\\julia\\Documents\\School\\TSBK03 Teknik Spel\\TSBK03_Project\\OpenGLApplication\\camera.h",
               "RelativeDocumentMoniker": "OpenGLApplication\\camera.h",
