@@ -1,0 +1,21 @@
+# Visual Studio internal files
+.vs/
+
+# Build output
+Debug/
+Release/
+x64/
+x86/
+
+# Object and intermediate files
+*.obj
+*.pch
+*.ipch
+*.idb
+*.pdb
+*.ilk
+*.tlog
+*.log
+
+# Executables
+*.exe
