@@ -34,6 +34,7 @@ Shader* weightShader = nullptr;
 
 // INSTANCES of other classes
 GLFWwindow* gWindow = nullptr;
+const aiScene* gScene = nullptr;
 
 
 
@@ -74,10 +75,31 @@ struct VertexBoneData
     }
 };
 
+// GPU-side vertex structure: derived from existing CPU-side arrays, needed to "render"
+struct VertexGPU
+{
+    glm::vec3 Position;     // Vertex position
+    glm::ivec4 BoneIDs;     // Indices of bones affecting this vertex
+    glm::vec4 Weights;      // Corresponding weights
+};
+
+
 // Other structures: Mapping from vertices to the bones that influece them
 std::vector<VertexBoneData> vertex_to_bones;                    // Mapping from vertices to the bones that influece them
 std::vector<int> mesh_base_vertex;                              // Stores all start-vertices of all meshes: Mesh 1 starts at index 0, Mesh 2 starts at index N (N = sizeof(Mesh 1))...
 std::map<std::string, unsigned int> bone_name_to_index_map;     // Mapping of bone-name to index, Assimp uses strings for names otherwise, effective for getting bone-ids
+
+// Global GPU buffers and containers -----------------
+
+// GPU data containers, needed to "render"
+std::vector<VertexGPU> gpuVertices;
+std::vector<unsigned int> gpuIndices;
+
+// OpenGL object handles, needed to "render"
+GLuint gVAO = 0;
+GLuint gVBO = 0;
+GLuint gEBO = 0;
+
 
 
 // ------------------------- UTIL -------------------------
@@ -201,6 +223,102 @@ void parse_scene(const aiScene* pScene)
 
 // ------------------------- LOADING -------------------------
 
+
+// Converts parsed Assimp + bone data into GPU-ready buffers, fills GPU vertex-data
+void build_gpu_buffers(const aiScene* pScene)
+{
+    gpuVertices.resize(vertex_to_bones.size());
+
+    // Fill vertex data
+    for (unsigned int i = 0; i < pScene->mNumMeshes; i++)
+    {
+        const aiMesh* pMesh = pScene->mMeshes[i];
+
+        for (unsigned int v = 0; v < pMesh->mNumVertices; v++)
+        {
+            unsigned int globalID = mesh_base_vertex[i] + v;
+
+            // Copy position
+            gpuVertices[globalID].Position = glm::vec3(
+                pMesh->mVertices[v].x,
+                pMesh->mVertices[v].y,
+                pMesh->mVertices[v].z
+            );
+
+            // Copy bone IDs and weights from your structure
+            gpuVertices[globalID].BoneIDs = glm::ivec4(
+                vertex_to_bones[globalID].BoneIDs[0],
+                vertex_to_bones[globalID].BoneIDs[1],
+                vertex_to_bones[globalID].BoneIDs[2],
+                vertex_to_bones[globalID].BoneIDs[3]
+            );
+
+            gpuVertices[globalID].Weights = glm::vec4(
+                vertex_to_bones[globalID].Weights[0],
+                vertex_to_bones[globalID].Weights[1],
+                vertex_to_bones[globalID].Weights[2],
+                vertex_to_bones[globalID].Weights[3]
+            );
+        }
+
+        // Build index buffer
+        for (unsigned int f = 0; f < pMesh->mNumFaces; f++)
+        {
+            const aiFace& face = pMesh->mFaces[f];
+            gpuIndices.push_back(mesh_base_vertex[i] + face.mIndices[0]);
+            gpuIndices.push_back(mesh_base_vertex[i] + face.mIndices[1]);
+            gpuIndices.push_back(mesh_base_vertex[i] + face.mIndices[2]);
+        }
+    }
+}
+
+// Uploads GPU vertex/index data to OpenGL bu creating VAO, VBO and EBO
+void create_opengl_buffers()
+{
+    glGenVertexArrays(1, &gVAO);
+    glGenBuffers(1, &gVBO);
+    glGenBuffers(1, &gEBO);
+
+    glBindVertexArray(gVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, gVBO);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        gpuVertices.size() * sizeof(VertexGPU),
+        gpuVertices.data(),
+        GL_STATIC_DRAW
+    );
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gEBO);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        gpuIndices.size() * sizeof(unsigned int),
+        gpuIndices.data(),
+        GL_STATIC_DRAW
+    );
+
+    // Vertex position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexGPU), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Bone IDs (integer attribute!)
+    glVertexAttribIPointer(
+        1, 4, GL_INT, sizeof(VertexGPU),
+        (void*)offsetof(VertexGPU, BoneIDs)
+    );
+    glEnableVertexAttribArray(1);
+
+    // Bone weights
+    glVertexAttribPointer(
+        2, 4, GL_FLOAT, GL_FALSE, sizeof(VertexGPU),
+        (void*)offsetof(VertexGPU, Weights)
+    );
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(0);
+}
+
+
 // Load-flags for reading: Triangulate all polygons in mesh + generate normals + join identical vertices (may needed after triangulate)
 #define ASSIMP_LOAD_FLAGS (aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices)
 
@@ -222,6 +340,13 @@ bool loadModel(const std::string& filename)
 
     // Parse scene (only parses meshes)
     parse_scene(pScene);
+
+    // Set global aiScene
+    gScene = pScene;  
+
+    // Build and create buffers when model has been parsed
+    build_gpu_buffers(importer.GetScene());
+    create_opengl_buffers();
     
     // Return true if succesful process
     return true;
@@ -230,6 +355,8 @@ bool loadModel(const std::string& filename)
 // ------------------------- MAIN -------------------------
 int main()
 {
+    // Test and set up window -----------------
+
     if (!glfwInit()) {
         std::cerr << "Failed to init GLFW\n";
         return -1;
@@ -271,12 +398,13 @@ int main()
         * dragon.obj    // NOT RIGGED, ONE MESH
     */
 
-    // Test if loading succesful
+    // Test if loading succesful by calling everything and building buffers
     if (!loadModel(modelName)) {
         std::cerr << "Failed to load model.\n";
         return 1;
     }
 
+    // Main-loop ---------------------------
     while (!glfwWindowShouldClose(gWindow)) {
 
         float currentTime = (float)glfwGetTime();
@@ -304,7 +432,9 @@ int main()
         weightShader->SetMat4("MVP", MVP);
         weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
 
-        // Draw call will go here
+        // Draw the model
+        glBindVertexArray(gVAO);
+        glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(gWindow);
     }

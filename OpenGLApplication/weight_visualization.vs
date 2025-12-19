@@ -1,7 +1,7 @@
 #version 330 core
 
 layout (location = 0) in vec3 Position;
-layout (location = 1) in vec4 BoneIDs;
+layout (location = 1) in ivec4 BoneIDs;
 layout (location = 2) in vec4 Weights;
 
 uniform mat4 MVP;

@@ -19,6 +19,8 @@ bool IsKeyPressed(int key)
 
 void InputController::Update(float deltaTime)
 {
+    printf("\n Pressed!\n");
+    
     float speed = 5.0f * deltaTime;
 
     if (IsKeyPressed(GLFW_KEY_W)) camera.MoveForward(speed);
