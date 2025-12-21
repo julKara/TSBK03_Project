@@ -67,7 +67,7 @@ void InputController::Update(float deltaTime)
     {
         currentBoneIndex = std::max(0, currentBoneIndex);
         currentBoneIndex = std::min(currentBoneIndex, maxBoneIndex - 1);
-        printf("\n Current bone index %d!\n", currentBoneIndex);
+        //printf("\n Current bone index %d!\n", currentBoneIndex);
     }
 
     // Store states for next frame

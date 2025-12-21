@@ -23,7 +23,7 @@
 // CONSTANTS & MACROS
 float gLastTime = 0.0f;
 
-#define MAX_NUM_BONES_PER_VERTEX 6  // ADJUSTABLE
+#define MAX_NUM_BONES_PER_VERTEX 4  // ADJUSTABLE
 
 #define ARRAY_SIZE_IN_ELEMENTS(a) (sizeof(a)/sizeof(a[0]))  //
 
@@ -52,24 +52,21 @@ struct VertexBoneData
     }
 
     // Fills upp bone-data arrays for this bone
-    void AddBoneData(unsigned int boneID, float weight)
+    void AddBoneData(unsigned int BoneID, float Weight)
     {
-        // Go though BoneIDs array and fill it
+        // Go through all of BoneIds
         for (unsigned int i = 0; i < ARRAY_SIZE_IN_ELEMENTS(BoneIDs); i++) {
             
-            // If no current data - fill it
+            // Add data if there is none
             if (Weights[i] == 0.0) {
-                
-                // Add data
-                BoneIDs[i] = boneID;
-                Weights[i] = weight;
-
-                printf("\t\t\t\tBone-id %d weight %f boneIDs-index %i\n", boneID, weight, i);
+                BoneIDs[i] = BoneID;
+                Weights[i] = Weight;
+                //printf("Adding bone %d weight %f at index %i\n", BoneID, Weight, i);
                 return;
             }
         }
 
-        // Should never get here, triggers for bugs or if more than MAX_NUM_BONES_PER_VERTEX
+        // should never get here - more bones than we have space for
         assert(0);
     }
 };
@@ -88,6 +85,8 @@ struct VertexGPU
 std::vector<VertexBoneData> vertex_to_bones;                    // Mapping from vertices to the bones that influece them
 std::vector<int> mesh_base_vertex;                              // Stores all start-vertices of all meshes: Mesh 1 starts at index 0, Mesh 2 starts at index N (N = sizeof(Mesh 1))...
 std::map<std::string, unsigned int> bone_name_to_index_map;     // Mapping of bone-name to index, Assimp uses strings for names otherwise, effective for getting bone-ids
+
+static int space_count = 0;
 
 // Global GPU buffers and containers -----------------
 
@@ -124,6 +123,45 @@ int get_bone_id(const aiBone* pBone)
     return bone_id;
 }
 
+void print_space()
+{
+    for (int i = 0; i < space_count; i++) {
+        printf(" ");
+    }
+}
+
+// Prints out matrices - used for ex offset-matrices
+void print_assimp_matrix(const aiMatrix4x4& m)
+{
+    print_space(); printf("\t\t%f %f %f %f\n", m.a1, m.a2, m.a3, m.a4);
+    print_space(); printf("\t\t%f %f %f %f\n", m.b1, m.b2, m.b3, m.b4);
+    print_space(); printf("\t\t%f %f %f %f\n", m.c1, m.c2, m.c3, m.c4);
+    print_space(); printf("\t\t%f %f %f %f\n", m.d1, m.d2, m.d3, m.d4);
+}
+
+// Normalizes bone weights per vertex so that the sum equals 1.0, prevents "seams" and incorrect heat visualization
+void normalize_vertex_bone_weights()
+{
+    for (size_t v = 0; v < vertex_to_bones.size(); v++)
+    {
+        float sum = 0.0f;
+
+        // Sum all weights for this vertex
+        for (int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++)
+            sum += vertex_to_bones[v].Weights[i];
+
+        // If the vertex has any bone influence
+        if (sum > 0.0f)
+        {
+            // Normalize weights
+            for (int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++)
+                vertex_to_bones[v].Weights[i] /= sum;
+        }
+    }
+}
+
+// ------------------------- PARSING -------------------------
+
 // Parses a single bone - fills bone_name_to_index_map and vertex_to_bones
 void parse_single_bone(int mesh_index, const aiBone* pBone)
 {
@@ -135,6 +173,12 @@ void parse_single_bone(int mesh_index, const aiBone* pBone)
     // Get bone-id of input-bone while adding bone to bone_name_to_index_map
     int bone_id = get_bone_id(pBone);
     //printf("\t\tbone id %d\n", bone_id);
+
+    // Print the offset-matrix of the current bone (vertex- to bone-coordintes or local-to-bone-space)
+    printf("\t\tOffset-Matrix:\n");
+    print_assimp_matrix(pBone->mOffsetMatrix);
+    
+    //printf("Called! %d", pBone->mNumWeights);
     
     // Loop through all weights for this bone
     for (unsigned int i = 0; i < pBone->mNumWeights; i++) {
@@ -194,7 +238,7 @@ void parse_meshes(const aiScene* pScene)
         int num_bones = pMesh->mNumBones;
 
         // Print info for current mesh
-        //printf("\tMesh %d '%s': vertices %d indices %d bones %d\n\n", i, pMesh->mName.C_Str(), num_vertices, num_indices, num_bones);
+        printf("\tMesh %d '%s': vertices %d indices %d bones %d\n\n", i, pMesh->mName.C_Str(), num_vertices, num_indices, num_bones);
         
         // Add to total
         total_vertices += num_vertices;
@@ -210,7 +254,6 @@ void parse_meshes(const aiScene* pScene)
 
         printf("\n");
     }
-
     // Print total nr of nertices, indices and bones in scene
     printf("\nTotal vertices %d total indices %d total bones %d\n", total_vertices, total_indices, total_bones);
 }
@@ -219,27 +262,6 @@ void parse_meshes(const aiScene* pScene)
 void parse_scene(const aiScene* pScene)
 {
     parse_meshes(pScene);
-}
-
-// Normalizes bone weights per vertex so that the sum equals 1.0, prevents "seams" and incorrect heat visualization
-void normalize_vertex_bone_weights()
-{
-    for (size_t v = 0; v < vertex_to_bones.size(); v++)
-    {
-        float sum = 0.0f;
-
-        // Sum all weights for this vertex
-        for (int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++)
-            sum += vertex_to_bones[v].Weights[i];
-
-        // If the vertex has any bone influence
-        if (sum > 0.0f)
-        {
-            // Normalize weights
-            for (int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++)
-                vertex_to_bones[v].Weights[i] /= sum;
-        }
-    }
 }
 
 // ------------------------- LOADING -------------------------
@@ -469,14 +491,21 @@ int main()
     // ----------------------------------------------------
 
     // Change this to load any model in the Models folder
-    std::string modelName = "boblampclean.md5mesh";
+    std::string modelName = "two_bones_translation.fbx";
 
     /*
         Examples:
-        * Vanguard.dae          // RIGGED (many bones)
-        * boblampclean.md5mesh  // RIGGED (Doom 3 test model)
+        * Vanguard.dae          // RIGGED (many bones, Doom 3 test model increase max-boness to 7)
+        * boblampclean.md5mesh  // RIGGED 
         * spider.obj            // NOT RIGGED
         * dragon.obj            // NOT RIGGED, ONE MESH
+        
+        Used mostly for small tests:
+        * single_bone.fbx                       // RIGGED, (test offset-matrix, should be diagonal since bone-origin is in origin)
+        * two_bones_translation.fbx             // RIGGED, ANIMATED, (test offset-matrix, second matrix should be MOSTLY diagonal since bone-origin is from in origin of first bone)
+        * two_bones_translation_rotation.fbx    // RIGGED, ANIMATED
+        
+        WARNING: You probably have to press Q to see most models since I tested on a large one.
     */
 
     // Load model, parse meshes + bones, build VBO/VAO/EBO
