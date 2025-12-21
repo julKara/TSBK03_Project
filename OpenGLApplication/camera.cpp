@@ -4,7 +4,7 @@
 
 Camera::Camera()
 {
-    Position = glm::vec3(0.0f, 0.0f, 5.0f);
+    Position = glm::vec3(0.0f, 40.0f, 50.0f);
     Front = glm::vec3(0.0f, 0.0f, -1.0f);
     Up = glm::vec3(0.0f, 1.0f, 0.0f);
     Fov = 45.0f;
@@ -12,12 +12,19 @@ Camera::Camera()
 
 void Camera::MoveForward(float delta)
 {
+    //printf("\n Pressed W!\n");
     Position += Front * delta;
 }
 
 void Camera::MoveRight(float delta)
 {
     Position += glm::normalize(glm::cross(Front, Up)) * delta;
+}
+
+void Camera::MoveUp(float amount)
+{
+    // Move along the world up axis, not the camera's front
+    Position += glm::vec3(0.0f, 1.0f, 0.0f) * amount;
 }
 
 glm::mat4 Camera::GetViewMatrix() const

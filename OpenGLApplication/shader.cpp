@@ -2,10 +2,17 @@
 #include <glew.h>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 static std::string LoadFile(const std::string& path)
 {
     std::ifstream file(path);
+    if (!file.is_open())
+    {
+        std::cerr << "FAILED TO OPEN SHADER FILE: " << path << std::endl;
+        return "";
+    }
+
     std::stringstream ss;
     ss << file.rdbuf();
     return ss.str();
@@ -16,21 +23,51 @@ Shader::Shader(const std::string& vsPath, const std::string& fsPath)
     std::string vsSrc = LoadFile(vsPath);
     std::string fsSrc = LoadFile(fsPath);
 
+    if (vsSrc.empty() || fsSrc.empty()) {
+        std::cerr << "Shader source empty\n";
+        return;
+    }
+
     const char* vsrc = vsSrc.c_str();
     const char* fsrc = fsSrc.c_str();
 
-    unsigned int vs = glCreateShader(GL_VERTEX_SHADER);
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vs, 1, &vsrc, nullptr);
     glCompileShader(vs);
 
-    unsigned int fs = glCreateShader(GL_FRAGMENT_SHADER);
+    GLint success;
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char log[1024];
+        glGetShaderInfoLog(vs, 1024, nullptr, log);
+        std::cerr << "VERTEX SHADER ERROR:\n" << log << std::endl;
+        return;
+    }
+
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fs, 1, &fsrc, nullptr);
     glCompileShader(fs);
+
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char log[1024];
+        glGetShaderInfoLog(fs, 1024, nullptr, log);
+        std::cerr << "FRAGMENT SHADER ERROR:\n" << log << std::endl;
+        return;
+    }
 
     program = glCreateProgram();
     glAttachShader(program, vs);
     glAttachShader(program, fs);
     glLinkProgram(program);
+
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        char log[1024];
+        glGetProgramInfoLog(program, 1024, nullptr, log);
+        std::cerr << "SHADER LINK ERROR:\n" << log << std::endl;
+        return;
+    }
 
     glDeleteShader(vs);
     glDeleteShader(fs);
@@ -38,6 +75,7 @@ Shader::Shader(const std::string& vsPath, const std::string& fsPath)
 
 void Shader::Use() const
 {
+    //printf("\n Used!\n");
     glUseProgram(program);
 }
 

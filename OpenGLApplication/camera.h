@@ -12,6 +12,7 @@ public:
 
     void MoveForward(float delta);
     void MoveRight(float delta);
+    void MoveUp(float amount);
 
     glm::mat4 GetViewMatrix() const;
     glm::mat4 GetProjectionMatrix(float aspect) const;

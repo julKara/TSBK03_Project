@@ -29,4 +29,6 @@ void main()
     vec3 heatColor = WeightToColor(weight);
 
     FragColor = vec4(mix(baseColor, heatColor, weight), 1.0);
+
+    //FragColor = vec4(0.0, 0.0, 1.0, 1.0); // solid blue
 }

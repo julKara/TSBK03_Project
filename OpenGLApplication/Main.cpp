@@ -33,9 +33,8 @@ Shader* weightShader = nullptr;
 
 
 // INSTANCES of other classes
-GLFWwindow* gWindow = nullptr;
+GLFWwindow* gWindow = nullptr;  // Globally accesssable window - used in input-controller
 const aiScene* gScene = nullptr;
-
 
 
 // ------------------------- STRUCTURES -------------------------
@@ -134,7 +133,7 @@ void parse_single_bone(int mesh_index, const aiBone* pBone)
 
     // Get bone-id of input-bone while adding bone to bone_name_to_index_map
     int bone_id = get_bone_id(pBone);
-    printf("\t\tbone id %d\n", bone_id);
+    //printf("\t\tbone id %d\n", bone_id);
     
     // Loop through all weights for this bone
     for (unsigned int i = 0; i < pBone->mNumWeights; i++) {
@@ -144,7 +143,7 @@ void parse_single_bone(int mesh_index, const aiBone* pBone)
         const aiVertexWeight& vw = pBone->mWeights[i];  // Influence of this bone on a vertex
 
         unsigned int global_vertex_id = mesh_base_vertex[mesh_index] + vw.mVertexId; // Vertex-id becomes: N (index of first vert in current mesh) + index of vert influenced by bone
-        printf("\t\t\tVertex id %d \n", global_vertex_id);    // Global index = base index + local mesh index
+        //printf("\t\t\tVertex id %d \n", global_vertex_id);    // Global index = base index + local mesh index
 
         // Assert if possible to add bone-data to vertex_to_bones and then do that
         assert(global_vertex_id < vertex_to_bones.size());
@@ -194,7 +193,7 @@ void parse_meshes(const aiScene* pScene)
         int num_bones = pMesh->mNumBones;
 
         // Print info for current mesh
-        printf("\tMesh %d '%s': vertices %d indices %d bones %d\n\n", i, pMesh->mName.C_Str(), num_vertices, num_indices, num_bones);
+        //printf("\tMesh %d '%s': vertices %d indices %d bones %d\n\n", i, pMesh->mName.C_Str(), num_vertices, num_indices, num_bones);
         
         // Add to total
         total_vertices += num_vertices;
@@ -270,6 +269,19 @@ void build_gpu_buffers(const aiScene* pScene)
             gpuIndices.push_back(mesh_base_vertex[i] + face.mIndices[2]);
         }
     }
+
+    // Check Assimp metadata makes it to the CPU-buffer
+    /*for (int i = 0; i < 5 && i < gpuVertices.size(); i++)
+    {
+        printf("V[%d] = %f %f %f\n",
+            i,
+            gpuVertices[i].Position.x,
+            gpuVertices[i].Position.y,
+            gpuVertices[i].Position.z
+        );
+    }*/
+
+
 }
 
 // Uploads GPU vertex/index data to OpenGL bu creating VAO, VBO and EBO
@@ -353,92 +365,186 @@ bool loadModel(const std::string& filename)
 }
 
 // ------------------------- MAIN -------------------------
+// ------------------------- MAIN -------------------------
 int main()
 {
-    // Test and set up window -----------------
-
+    // ----------------------------------------------------
+    // Initialize GLFW (window + input handling library)
+    // ----------------------------------------------------
     if (!glfwInit()) {
         std::cerr << "Failed to init GLFW\n";
         return -1;
     }
 
+    // Request an OpenGL 3.3 core profile context
+    // This must be done BEFORE creating the window
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // Create the application window
     gWindow = glfwCreateWindow(1280, 720, "Bone Weight Viewer", nullptr, nullptr);
     if (!gWindow) {
         glfwTerminate();
         return -1;
     }
 
+    // Make the OpenGL context current for this thread
     glfwMakeContextCurrent(gWindow);
 
+    // ----------------------------------------------------
+    // Initialize GLEW (loads OpenGL function pointers)
+    // ----------------------------------------------------
     glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "Failed to init GLEW\n";
+    GLenum glewErr = glewInit();
+    if (glewErr != GLEW_OK) {
+        std::cerr << "GLEW error: " << glewGetErrorString(glewErr) << std::endl;
         return -1;
     }
 
-    // Test openGL
-    /*const GLubyte* version = glGetString(GL_VERSION);
-    std::cout << "OpenGL version: " << version << std::endl;*/
-    
-    weightShader = new Shader(
-        "../Shaders/weight_visualization.vs",
-        "../Shaders/weight_visualization.fs"
-    );
+    // Clear the spurious OpenGL error caused by GLEW + core profile
+    glGetError();
 
+    // Print some OpenGL info for sanity checking
+    std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
+
+    // ----------------------------------------------------
+    // Global OpenGL state
+    // ----------------------------------------------------
+
+    // Set the background color (dark bluish gray)
+    glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+
+    // Enable depth testing so triangles are properly occluded
     glEnable(GL_DEPTH_TEST);
 
-    // Load model -------------------------
-    // Change this to load any model in the Models folder (can handle "any" file-types)
-    std::string modelName = "boblampclean.md5mesh";  // Model name: WRITE HERE
+    // Disable face culling temporarily to avoid winding issues
+    glDisable(GL_CULL_FACE);
 
-    /* Examples:
-        * Vanguard.dae  // RIGGED, must change MAX_NUM_BONES_PER_VERTEX to 6
-        * boblampclean.md5mesh // RIGGED, less meshes (from Doom 3)
-        * spider.obj    // NOT RIGGED
-        * dragon.obj    // NOT RIGGED, ONE MESH
+    // ----------------------------------------------------
+    // Create and compile the shader used for weight visualization
+    // ----------------------------------------------------
+    weightShader = new Shader(
+        "weight_visualization.vs",
+        "weight_visualization.fs"
+    );
+
+    // ----------------------------------------------------
+    // Load model using Assimp and build GPU buffers
+    // ----------------------------------------------------
+
+    // Change this to load any model in the Models folder
+    std::string modelName = "boblampclean.md5mesh";
+
+    /*
+        Examples:
+        * Vanguard.dae          // RIGGED (many bones)
+        * boblampclean.md5mesh  // RIGGED (Doom 3 test model)
+        * spider.obj            // NOT RIGGED
+        * dragon.obj            // NOT RIGGED, ONE MESH
     */
 
-    // Test if loading succesful by calling everything and building buffers
+    // Load model, parse meshes + bones, build VBO/VAO/EBO
     if (!loadModel(modelName)) {
         std::cerr << "Failed to load model.\n";
         return 1;
     }
 
-    // Main-loop ---------------------------
+    // ----------------------------------------------------
+    // Main render loop
+    // ----------------------------------------------------
     while (!glfwWindowShouldClose(gWindow)) {
 
+        // ------------------------------------------------
+        // Time handling (used for smooth camera movement)
+        // ------------------------------------------------
         float currentTime = (float)glfwGetTime();
         float deltaTime = currentTime - gLastTime;
         gLastTime = currentTime;
 
+        // ------------------------------------------------
+        // Input handling
+        // ------------------------------------------------
         glfwPollEvents();
+
+        // Update input controller:
+        //  - WASD moves the camera
+        //  - Arrow keys change selected bone index
         input.Update(deltaTime);
 
+        // ------------------------------------------------
+        // Window / viewport handling
+        // ------------------------------------------------
         int width, height;
         glfwGetFramebufferSize(gWindow, &width, &height);
         float aspect = (float)width / (float)height;
 
         glViewport(0, 0, width, height);
+
+        // Clear color + depth buffers
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // ------------------------------------------------
+        // Build transformation matrices
+        // ------------------------------------------------
+
+        // Model matrix (identity for now — model stays at origin)
+        // Base model transform (identity)
         glm::mat4 modelMatrix(1.0f);
 
+        // Apply mouse-driven rotation from input controller
+        modelMatrix = input.GetModelRotationMatrix() * modelMatrix;
+
+
+        // IMPORTANT:
+        // The camera matrices MUST come from the camera object.
+        // If you hard-code glm::lookAt here, camera movement will not work.
         glm::mat4 MVP =
             input.GetCamera().GetProjectionMatrix(aspect) *
             input.GetCamera().GetViewMatrix() *
             modelMatrix;
 
+        // ------------------------------------------------
+        // Rendering
+        // ------------------------------------------------
+
+        // Activate the shader program
         weightShader->Use();
+
+        // Upload MVP matrix to the shader
         weightShader->SetMat4("MVP", MVP);
-        weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
 
-        // Draw the model
+        // Upload currently selected bone index
+        // Used in fragment shader for weight visualization
+        weightShader->SetInt(
+            "uSelectedBone",
+            input.GetCurrentBoneIndex()
+        );
+
+        // Bind the VAO containing vertex + index buffers
         glBindVertexArray(gVAO);
-        glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
 
+        // Draw the entire mesh using indexed triangles
+        glDrawElements(
+            GL_TRIANGLES,
+            (GLsizei)gpuIndices.size(),
+            GL_UNSIGNED_INT,
+            0
+        );
+
+        // Unbind VAO (good practice)
+        glBindVertexArray(0);
+
+        // ------------------------------------------------
+        // Present rendered image to the screen
+        // ------------------------------------------------
         glfwSwapBuffers(gWindow);
     }
 
+    // ----------------------------------------------------
+    // Cleanup and exit
+    // ----------------------------------------------------
     glfwTerminate();
     return 0;
 }
