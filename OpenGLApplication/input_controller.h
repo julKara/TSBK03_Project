@@ -11,11 +11,18 @@ public:
 
     void Update(float deltaTime);
 
+    // Sets the maximum valid bone index (exclusive)
+    void SetMaxBoneIndex(int maxIndex);
+    
     int GetCurrentBoneIndex() const;
 
     Camera& GetCamera();
 
-    // ---------------- Mouse drag rotation ----------------
+    // Tracks previous key states to detect single key presses
+    bool prevUpPressed = false;
+    bool prevDownPressed = false;
+    
+    // Mouse drag rotation ----------------
 
     // True while left mouse button is held
     bool isDragging = false;
@@ -37,4 +44,6 @@ public:
 private:
     Camera camera;
     int currentBoneIndex;
+    // Maximum valid bone index(set externally)
+    int maxBoneIndex = 0;
 };

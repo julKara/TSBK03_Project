@@ -25,6 +25,7 @@ void InputController::Update(float deltaTime)
 { 
     float speed = 5.0f * deltaTime;
 
+    // Normal camera movement(W/ A / S / D) ----------------
     if (IsKeyPressed(GLFW_KEY_W)) {
         //printf("\n Pressed W!\n");
         camera.MoveForward(speed);
@@ -42,16 +43,38 @@ void InputController::Update(float deltaTime)
         camera.MoveRight(speed);
     }
 
-    if (IsKeyPressed(GLFW_KEY_UP)) {
-        //printf("\n Pressed Up!\n");
+    // Vertical camera movement (ArrowUp / ArrowDown) ----------------
+    // ---------------- Bone index selection ----------------
+
+    // Check current key states
+    bool upPressed = IsKeyPressed(GLFW_KEY_UP);
+    bool downPressed = IsKeyPressed(GLFW_KEY_DOWN);
+
+    // Increment bone index ONLY on press transition
+    if (upPressed && !prevUpPressed)
+    {
         currentBoneIndex++;
     }
-    if (IsKeyPressed(GLFW_KEY_DOWN)) {
-        //printf("\n Pressed Down!\n");
-        currentBoneIndex = std::max(0, currentBoneIndex - 1);
+
+    // Decrement bone index ONLY on press transition
+    if (downPressed && !prevDownPressed)
+    {
+        currentBoneIndex--;
     }
 
-    // ---------------- Vertical camera movement (Q / E) ----------------
+    // Clamp to valid range [0, maxBoneIndex - 1]
+    if (maxBoneIndex > 0)
+    {
+        currentBoneIndex = std::max(0, currentBoneIndex);
+        currentBoneIndex = std::min(currentBoneIndex, maxBoneIndex - 1);
+        printf("\n Current bone index %d!\n", currentBoneIndex);
+    }
+
+    // Store states for next frame
+    prevUpPressed = upPressed;
+    prevDownPressed = downPressed;
+
+    // Vertical camera movement (Q / E) ----------------
 
     // Move camera up in world space
     if (IsKeyPressed(GLFW_KEY_E))
@@ -66,7 +89,7 @@ void InputController::Update(float deltaTime)
     }
 
 
-    // ---------------- Mouse drag handling ----------------
+    // Mouse drag handling ----------------
 
     double mouseX, mouseY;
     glfwGetCursorPos(gWindow, &mouseX, &mouseY);
@@ -104,6 +127,11 @@ void InputController::Update(float deltaTime)
         // Mouse released
         isDragging = false;
     }
+}
+
+void InputController::SetMaxBoneIndex(int maxIndex)
+{
+    maxBoneIndex = std::max(0, maxIndex);
 }
 
 int InputController::GetCurrentBoneIndex() const

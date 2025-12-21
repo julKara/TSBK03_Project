@@ -359,6 +359,9 @@ bool loadModel(const std::string& filename)
     // Build and create buffers when model has been parsed
     build_gpu_buffers(importer.GetScene());
     create_opengl_buffers();
+
+    // Inform input controller how many bones are available
+    input.SetMaxBoneIndex((int)bone_name_to_index_map.size());
     
     // Return true if succesful process
     return true;
