@@ -258,10 +258,43 @@ void parse_meshes(const aiScene* pScene)
     printf("\nTotal vertices %d total indices %d total bones %d\n", total_vertices, total_indices, total_bones);
 }
 
+// Parses each individual node recurivly by going down the tree.
+void parse_node(const aiNode* pNode)
+{
+    // Print some info
+    print_space(); printf("Node name: '%s' num children %d num meshes %d\n", pNode->mName.C_Str(), pNode->mNumChildren, pNode->mNumMeshes);
+    print_space(); printf("Node transformation:\n");
+    print_assimp_matrix(pNode->mTransformation);
+
+    space_count += 4;
+
+    // Recursivly go down the tree
+    for (unsigned int i = 0; i < pNode->mNumChildren; i++) {
+        printf("\n");
+        print_space(); printf("--- %d ---\n", i);
+        parse_node(pNode->mChildren[i]);
+    }
+
+    space_count -= 4;
+}
+
+// Parses scene from the root
+void parse_hierarchy(const aiScene* pScene)
+{
+    printf("\n*******************************************************\n");
+    printf("Parsing the node hierarchy\n");
+
+    parse_node(pScene->mRootNode);
+}
+
 // Parses the file-read scene (meshes - since we will only use models FOR NOW - will handle all scene stuff)
 void parse_scene(const aiScene* pScene)
 {
+    // Go through all meshes and fill up data-arrays
     parse_meshes(pScene);
+
+    // Go through scene-node and find all nodes and their realationships (parent-child, like blender)
+    parse_hierarchy(pScene);
 }
 
 // ------------------------- LOADING -------------------------
@@ -491,7 +524,7 @@ int main()
     // ----------------------------------------------------
 
     // Change this to load any model in the Models folder
-    std::string modelName = "two_bones_translation.fbx";
+    std::string modelName = "boblampclean.md5mesh";
 
     /*
         Examples:
@@ -502,8 +535,8 @@ int main()
         
         Used mostly for small tests:
         * single_bone.fbx                       // RIGGED, (test offset-matrix, should be diagonal since bone-origin is in origin)
-        * two_bones_translation.fbx             // RIGGED, ANIMATED, (test offset-matrix, second matrix should be MOSTLY diagonal since bone-origin is from in origin of first bone)
-        * two_bones_translation_rotation.fbx    // RIGGED, ANIMATED
+        * two_bones_translation.fbx             // RIGGED, ANIMATED, (test offset-matrix, second matrix should be MOSTLY diagonal since bone-origin is from in origin of first bone (offset-along y-axis))
+        * two_bones_translation_rotation.fbx    // RIGGED, ANIMATED, (second bone offset-by 45 degrees)
         
         WARNING: You probably have to press Q to see most models since I tested on a large one.
     */
@@ -515,7 +548,7 @@ int main()
     }
 
     // ----------------------------------------------------
-    // Main render loop
+    // Main render loop -----------------------------------
     // ----------------------------------------------------
     while (!glfwWindowShouldClose(gWindow)) {
 
