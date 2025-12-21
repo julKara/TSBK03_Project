@@ -9,6 +9,7 @@ public:
     void Use() const;
 
     void SetMat4(const char* name, const glm::mat4& m) const;
+    void SetVec3(const char* name, const glm::vec3& v) const;
     void SetInt(const char* name, int v) const;
 
 private:

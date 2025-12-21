@@ -23,7 +23,7 @@
 // CONSTANTS & MACROS
 float gLastTime = 0.0f;
 
-#define MAX_NUM_BONES_PER_VERTEX 4  // ADJUSTABLE
+#define MAX_NUM_BONES_PER_VERTEX 6  // ADJUSTABLE
 
 #define ARRAY_SIZE_IN_ELEMENTS(a) (sizeof(a)/sizeof(a[0]))  //
 
@@ -78,6 +78,7 @@ struct VertexBoneData
 struct VertexGPU
 {
     glm::vec3 Position;     // Vertex position
+    glm::vec3 Normal;       // Vertex normal
     glm::ivec4 BoneIDs;     // Indices of bones affecting this vertex
     glm::vec4 Weights;      // Corresponding weights
 };
@@ -220,6 +221,27 @@ void parse_scene(const aiScene* pScene)
     parse_meshes(pScene);
 }
 
+// Normalizes bone weights per vertex so that the sum equals 1.0, prevents "seams" and incorrect heat visualization
+void normalize_vertex_bone_weights()
+{
+    for (size_t v = 0; v < vertex_to_bones.size(); v++)
+    {
+        float sum = 0.0f;
+
+        // Sum all weights for this vertex
+        for (int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++)
+            sum += vertex_to_bones[v].Weights[i];
+
+        // If the vertex has any bone influence
+        if (sum > 0.0f)
+        {
+            // Normalize weights
+            for (int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++)
+                vertex_to_bones[v].Weights[i] /= sum;
+        }
+    }
+}
+
 // ------------------------- LOADING -------------------------
 
 
@@ -242,6 +264,13 @@ void build_gpu_buffers(const aiScene* pScene)
                 pMesh->mVertices[v].x,
                 pMesh->mVertices[v].y,
                 pMesh->mVertices[v].z
+            );
+
+            // Copy normals
+            gpuVertices[globalID].Normal = glm::vec3(
+                pMesh->mNormals[v].x,
+                pMesh->mNormals[v].y,
+                pMesh->mNormals[v].z
             );
 
             // Copy bone IDs and weights from your structure
@@ -309,23 +338,23 @@ void create_opengl_buffers()
         GL_STATIC_DRAW
     );
 
+    // Upload attributes to shader ----------------------
+
     // Vertex position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexGPU), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Bone IDs (integer attribute!)
-    glVertexAttribIPointer(
-        1, 4, GL_INT, sizeof(VertexGPU),
-        (void*)offsetof(VertexGPU, BoneIDs)
-    );
+    // Vertex normal
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexGPU),(void*)offsetof(VertexGPU, Normal));
     glEnableVertexAttribArray(1);
 
-    // Bone weights
-    glVertexAttribPointer(
-        2, 4, GL_FLOAT, GL_FALSE, sizeof(VertexGPU),
-        (void*)offsetof(VertexGPU, Weights)
-    );
+    // Bone IDs (integer attribute!)
+    glVertexAttribIPointer(2, 4, GL_INT, sizeof(VertexGPU), (void*)offsetof(VertexGPU, BoneIDs));
     glEnableVertexAttribArray(2);
+
+    // Bone weights
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(VertexGPU), (void*)offsetof(VertexGPU, Weights));
+    glEnableVertexAttribArray(3);
 
     glBindVertexArray(0);
 }
@@ -352,6 +381,9 @@ bool loadModel(const std::string& filename)
 
     // Parse scene (only parses meshes)
     parse_scene(pScene);
+
+    // Normalize weights AFTER all bones are known
+    normalize_vertex_bone_weights();
 
     // Set global aiScene
     gScene = pScene;  
@@ -517,12 +549,15 @@ int main()
         // Upload MVP matrix to the shader
         weightShader->SetMat4("MVP", MVP);
 
+        // World-space light direction (pointing *towards* model)
+        weightShader->SetVec3("uLightDir", glm::normalize(glm::vec3(7.5f, 10.0f, 1.5f)));
+
+        // Camera position for view-based effects later
+        weightShader->SetVec3("uViewPos", glm::vec3(0, 2, 5));
+
         // Upload currently selected bone index
         // Used in fragment shader for weight visualization
-        weightShader->SetInt(
-            "uSelectedBone",
-            input.GetCurrentBoneIndex()
-        );
+        weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
 
         // Bind the VAO containing vertex + index buffers
         glBindVertexArray(gVAO);
