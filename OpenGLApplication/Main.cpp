@@ -37,6 +37,7 @@ float gLastTime = 0.0f;
 InputController input;
 Shader* weightShader = nullptr;
 Shader* debugLineShader = nullptr;
+Shader* skinningShader = nullptr;
 Skeleton gSkeleton;
 
 
@@ -48,7 +49,7 @@ GLuint gBoneVAO = 0;
 GLuint gBoneVBO = 0;
 
 // FLAGS
-bool gUseRagdoll = true;
+bool gUseRagdoll = false;
 
 
 
@@ -722,6 +723,11 @@ int main()
         "debugLine_Shader.fs"
     );
 
+    skinningShader = new Shader(
+        "skinning.vs",
+        "skinning.fs"
+    );
+
     // ----------------------------------------------------
     // Load model using Assimp and build GPU buffers
     // ----------------------------------------------------
@@ -731,14 +737,14 @@ int main()
 
     /*
         Examples:
-        * Vanguard.dae          // RIGGED (many bones, Doom 3 test model increase max-boness to 7)
+        * Vanguard.dae          // RIGGED (many bones, Doom 3 test model increase max-boness to 7), super large
         * boblampclean.md5mesh  // RIGGED 
         * spider.obj            // NOT RIGGED
         * dragon.obj            // NOT RIGGED, ONE MESH
         
         Used mostly for small tests:
         * single_bone.fbx                       // RIGGED, (test offset-matrix, should be diagonal since bone-origin is in origin)
-        * two_bones_translation.fbx             // RIGGED, ANIMATED, (test offset-matrix, second matrix should be MOSTLY diagonal since bone-origin is from in origin of first bone (offset-along y-axis))
+        * two_bones_translation.fbx             // RIGGED, (test offset-matrix, second matrix should be MOSTLY diagonal since bone-origin is from in origin of first bone (offset-along y-axis))
         * two_bones_translation_rotation.fbx    // RIGGED, ANIMATED, (second bone offset-by 45 degrees)
         
         WARNING: You probably have to press Q to see most models since I tested on a large one.
@@ -806,10 +812,21 @@ int main()
             applyPhysicsToSkeleton(gPhysicsSkeleton, gSkeleton);
         }
 
+        // TESTING - Makes model bend over, MUST USE SKINNING SHADER or Lines (but must comment out physics)
+        if (gSkeleton.bones.size() > 1)
+        {
+            gSkeleton.bones[1].localPose =
+                glm::rotate(glm::mat4(1.0f),
+                    sinf((float)glfwGetTime()) * 0.5f,
+                    glm::vec3(0, 0, 1));
+        }
+
         // Rebuild transforms
         computeGlobalBoneTransforms(gSkeleton);
         buildFinalBoneMatrices(gSkeleton, gFinalBoneMatrices);
-        uploadBoneMatrices(weightShader, gFinalBoneMatrices);
+        //uploadBoneMatrices(weightShader, gFinalBoneMatrices); // Use weight-shader
+        uploadBoneMatrices(skinningShader, gFinalBoneMatrices); // Use skinning-shader
+
 
 
         // ------------------------------------------------
@@ -868,13 +885,24 @@ int main()
             glBindVertexArray(0);
 
             glEnable(GL_DEPTH_TEST);
+
+            // Physics + Skinning
+            skinningShader->Use();
+            skinningShader->SetMat4("MVP", MVP);
+
+            glBindVertexArray(gVAO);
+            glDrawElements(GL_TRIANGLES,
+                (GLsizei)gpuIndices.size(),
+                GL_UNSIGNED_INT,
+                0);
+            glBindVertexArray(0);
         }
         else {
             // ------------------------------------------------
-            // Rendering - Normal
+            // Rendering - Weights
             // ------------------------------------------------
 
-            // Activate the shader program
+            /*/ Activate the shader program
             weightShader->Use();
 
             // Upload MVP matrix to the shader
@@ -897,7 +925,21 @@ int main()
             glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
 
             // Unbind VAO (just for clean code)
+            glBindVertexArray(0);*/
+
+            // ------------------------------------------------
+            // Rendering - Skinning
+            // ------------------------------------------------
+            skinningShader->Use();
+            skinningShader->SetMat4("MVP", MVP);
+
+            glBindVertexArray(gVAO);
+            glDrawElements(GL_TRIANGLES,
+                (GLsizei)gpuIndices.size(),
+                GL_UNSIGNED_INT,
+                0);
             glBindVertexArray(0);
+
         }
 
         
