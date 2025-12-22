@@ -4,6 +4,9 @@
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post-processing flags
 
+// Bullet headers
+#include <bullet3-3.25/src/btBulletDynamicsCommon.h>
+
 // C++ headers
 #include <iostream>
 #include <string>
@@ -48,8 +51,16 @@ const aiScene* gScene = nullptr;
 GLuint gBoneVAO = 0;
 GLuint gBoneVBO = 0;
 
+// Bullet Globals
+btDiscreteDynamicsWorld* gDynamicsWorld = nullptr;
+btBroadphaseInterface* gBroadphase = nullptr;
+btDefaultCollisionConfiguration* gCollisionConfig = nullptr;
+btCollisionDispatcher* gDispatcher = nullptr;
+btSequentialImpulseConstraintSolver* gSolver = nullptr;
+
+
 // FLAGS
-bool gUseRagdoll = false;
+bool gUseRagdoll = true;
 
 
 
@@ -824,8 +835,8 @@ int main()
         // Rebuild transforms
         computeGlobalBoneTransforms(gSkeleton);
         buildFinalBoneMatrices(gSkeleton, gFinalBoneMatrices);
-        //uploadBoneMatrices(weightShader, gFinalBoneMatrices); // Use weight-shader
-        uploadBoneMatrices(skinningShader, gFinalBoneMatrices); // Use skinning-shader
+        uploadBoneMatrices(weightShader, gFinalBoneMatrices); // Use weight-shader
+        //uploadBoneMatrices(skinningShader, gFinalBoneMatrices); // Use skinning-shader
 
 
 
@@ -899,10 +910,10 @@ int main()
         }
         else {
             // ------------------------------------------------
-            // Rendering - Weights
+            /*/ Rendering - Weights
             // ------------------------------------------------
 
-            /*/ Activate the shader program
+            // Activate the shader program
             weightShader->Use();
 
             // Upload MVP matrix to the shader
