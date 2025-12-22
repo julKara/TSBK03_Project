@@ -5,7 +5,7 @@
 #include <assimp/postprocess.h>     // Post-processing flags
 
 // Bullet headers
-#include <bullet3-3.25/src/btBulletDynamicsCommon.h>
+//#include <bullet3-3.25/src/btBulletDynamicsCommon.h>
 
 // C++ headers
 #include <iostream>
@@ -51,12 +51,12 @@ const aiScene* gScene = nullptr;
 GLuint gBoneVAO = 0;
 GLuint gBoneVBO = 0;
 
-// Bullet Globals
+/*/ Bullet Globals
 btDiscreteDynamicsWorld* gDynamicsWorld = nullptr;
 btBroadphaseInterface* gBroadphase = nullptr;
 btDefaultCollisionConfiguration* gCollisionConfig = nullptr;
 btCollisionDispatcher* gDispatcher = nullptr;
-btSequentialImpulseConstraintSolver* gSolver = nullptr;
+btSequentialImpulseConstraintSolver* gSolver = nullptr;*/
 
 
 // FLAGS
@@ -143,6 +143,25 @@ GLuint gEBO = 0;
 
 
 // ------------------------- UTIL -------------------------
+
+/*/ Initilize Bullet
+void initBullet()
+{
+    gBroadphase = new btDbvtBroadphase();
+    gCollisionConfig = new btDefaultCollisionConfiguration();
+    gDispatcher = new btCollisionDispatcher(gCollisionConfig);
+    gSolver = new btSequentialImpulseConstraintSolver();
+
+    gDynamicsWorld = new btDiscreteDynamicsWorld(
+        gDispatcher,
+        gBroadphase,
+        gSolver,
+        gCollisionConfig
+    );
+
+    gDynamicsWorld->setGravity(btVector3(0, -9.81f, 0));
+}*/
+
 
 // Apply physics, copies results of physics to localPose in Skeleton::Bone - will be rendered
 void applyPhysicsToSkeleton(const PhysicsSkeleton& physics, Skeleton& skeleton)
@@ -743,6 +762,9 @@ int main()
     // Load model using Assimp and build GPU buffers
     // ----------------------------------------------------
 
+    // Intitializa Bullet
+    //initBullet();
+    
     // Change this to load any model in the Models folder
     std::string modelName = "boblampclean.md5mesh";
 
