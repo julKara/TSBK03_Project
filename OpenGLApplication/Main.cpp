@@ -90,6 +90,8 @@ struct VertexGPU
 // Other structures: Mapping from vertices to the bones that influece them
 std::vector<VertexBoneData> vertex_to_bones;                    // Mapping from vertices to the bones that influece them
 std::vector<int> mesh_base_vertex;                              // Stores all start-vertices of all meshes: Mesh 1 starts at index 0, Mesh 2 starts at index N (N = sizeof(Mesh 1))...
+std::vector<glm::mat4> gFinalBoneMatrices;                      // Stores transformations for final-bonesm used to render in vertex-shader
+
 
 static int space_count = 0;
 
@@ -107,7 +109,52 @@ GLuint gEBO = 0;
 
 // ------------------------- UTIL -------------------------
 
-// Returns bone-id of input-bone and adds bones to bone_name_to_index_map
+// Calculate FinalBoneMatrices - important for vertex-shader
+void buildFinalBoneMatrices(const Skeleton& skeleton, std::vector<glm::mat4>& outMatrices)
+{
+    outMatrices.resize(skeleton.bones.size());
+
+    // Go through all bones in skeleton
+    for (size_t i = 0; i < skeleton.bones.size(); i++)
+    {
+        outMatrices[i] = skeleton.bones[i].globalPose * skeleton.bones[i].offsetMatrix; // final-bone-matrices = global-pose * offset-matrix
+    }
+}
+
+// Computes the global-bone-transforms, needed for bone-world-transforms, parent-child-relationships and calculate final-bone-matrices (= global-pose * offset-matrix)
+void computeGlobalBoneTransforms(Skeleton& skeleton)
+{
+    // Go through all bones in skeleton
+    for (size_t i = 0; i < skeleton.bones.size(); i++)
+    {
+        Bone& bone = skeleton.bones[i];
+
+        if (bone.parentIndex == -1)
+        {
+            // Root bone: local == global (doesnt have parent)
+            bone.globalPose = bone.localPose;
+        }
+        else
+        {
+            // All bones that is not child of root
+            const Bone& parent = skeleton.bones[bone.parentIndex];  // Set parent
+            bone.globalPose = parent.globalPose * bone.localPose;   // Calculate global pose, follow chain-logic
+        }
+    }
+}
+
+// Initializes runtime-posem based on bind-pose
+void initializeSkeletonPose(Skeleton& skeleton)
+{
+    // Go through all bones in skeleton
+    for (Bone& bone : skeleton.bones)
+    {
+        // Start runtime pose equal to bind pose
+        bone.localPose = bone.localBindPose;
+        bone.globalPose = glm::mat4(1.0f);
+    }
+}
+
 // Returns bone-id of input-bone and adds bones to the skeleton
 int get_bone_id(const aiBone* pBone)
 {
@@ -285,8 +332,7 @@ void parse_node(const aiNode* pNode, int parentBoneIndex = -1)
     {
         currentBoneIndex = it->second;
         gSkeleton.bones[currentBoneIndex].parentIndex = parentBoneIndex;
-        gSkeleton.bones[currentBoneIndex].localBindPose =
-            glm::transpose(glm::make_mat4(&pNode->mTransformation.a1));
+        gSkeleton.bones[currentBoneIndex].localBindPose = glm::transpose(glm::make_mat4(&pNode->mTransformation.a1));
     }
 
     space_count += 4;
@@ -457,8 +503,7 @@ bool loadModel(const std::string& filename)
     }
 
     // IMPORTANT:
-    // Clear previous data so loading multiple models works correctly
-    // and bone indices start from 0 again
+    // Clear previous data so loading multiple models works correctly and bone indices start from 0 again
     vertex_to_bones.clear();
     mesh_base_vertex.clear();
     gpuVertices.clear();
@@ -473,6 +518,9 @@ bool loadModel(const std::string& filename)
     // Normalize weights AFTER all bones are known
     normalize_vertex_bone_weights();
 
+    // Initializes runtime-pose based on bind-pose, aka set local and global pose (not calculated, only initialized) 
+    initializeSkeletonPose(gSkeleton);
+
     // Set global aiScene
     gScene = pScene;
 
@@ -481,7 +529,6 @@ bool loadModel(const std::string& filename)
     create_opengl_buffers();
 
     // Inform input controller how many bones are available
-    // This replaces the old bone_name_to_index_map.size()
     input.SetMaxBoneIndex(static_cast<int>(gSkeleton.bones.size()));
 
     return true;
@@ -615,6 +662,15 @@ int main()
         input.Update(deltaTime);
 
         // ------------------------------------------------
+        // Update skeleton pose (animation/physics step (ragdolling)
+        // ------------------------------------------------
+
+        // For now this uses bind pose only.
+        // Later this will be driven by rag-doll physics.
+        computeGlobalBoneTransforms(gSkeleton);
+        buildFinalBoneMatrices(gSkeleton, gFinalBoneMatrices);
+
+        // ------------------------------------------------
         // Window / viewport handling
         // ------------------------------------------------
         int width, height;
@@ -670,14 +726,9 @@ int main()
         glBindVertexArray(gVAO);
 
         // Draw the entire mesh using indexed triangles
-        glDrawElements(
-            GL_TRIANGLES,
-            (GLsizei)gpuIndices.size(),
-            GL_UNSIGNED_INT,
-            0
-        );
+        glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(),GL_UNSIGNED_INT, 0);
 
-        // Unbind VAO (good practice)
+        // Unbind VAO (just for clean code)
         glBindVertexArray(0);
 
         // ------------------------------------------------

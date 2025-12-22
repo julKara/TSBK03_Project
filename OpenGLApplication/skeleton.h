@@ -8,9 +8,16 @@
 struct Bone
 {
     std::string name;
-    int parentIndex = -1;           // -1 = root
-    glm::mat4 offsetMatrix{ 1.0f };   // Assimp offset matrix
-    glm::mat4 localBindPose{ 1.0f };  // Node transform
+
+    int parentIndex = -1;   // -1 means root bone
+
+    // Assimp data
+    glm::mat4 offsetMatrix{ 1.0f };      // Vertex-to-bone-space
+    glm::mat4 localBindPose{ 1.0f };     // Node transform in bind pose, refrence pose
+
+    // Runtime transforms - needed for animation
+    glm::mat4 localPose{ 1.0f };         // Current local pose (anim & physics), will be overwritten every frame
+    glm::mat4 globalPose{ 1.0f };        // Final world-space transform, computed outcome of the chain of offset-matrices, needed for skinning and constraints
 };
 
 // Represents a full skeleton hierarchy
