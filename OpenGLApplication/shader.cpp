@@ -79,6 +79,24 @@ void Shader::Use() const
     glUseProgram(program);
 }
 
+
+void Shader::SetMat4Array(const std::string& name, const glm::mat4* data, int count)
+{
+    // Make sure this shader is active
+    glUseProgram(program);
+
+    GLint loc = glGetUniformLocation(program, name.c_str());
+    if (loc == -1) return; // uniform not found (safe early-out)
+
+    glUniformMatrix4fv(
+        loc,
+        count,
+        GL_FALSE,
+        &data[0][0][0]
+    );
+}
+
+
 void Shader::SetMat4(const char* name, const glm::mat4& m) const
 {
     glUniformMatrix4fv(glGetUniformLocation(program, name), 1, GL_FALSE, &m[0][0]);

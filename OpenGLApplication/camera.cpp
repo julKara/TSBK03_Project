@@ -36,5 +36,5 @@ glm::mat4 Camera::GetViewMatrix() const
 
 glm::mat4 Camera::GetProjectionMatrix(float aspect) const
 {
-    return glm::perspective(glm::radians(Fov), aspect, 0.1f, 100.0f);
+    return glm::perspective(glm::radians(Fov), aspect, 0.1f, 500.0f);   // Last is "render-distance"
 }

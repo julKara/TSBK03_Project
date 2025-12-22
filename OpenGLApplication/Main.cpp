@@ -23,6 +23,7 @@
 #include "input_controller.h"
 #include "shader.h"
 #include "skeleton.h"
+#include "phyicsBone.h"
 
 
 // CONSTANTS & MACROS
@@ -35,6 +36,7 @@ float gLastTime = 0.0f;
 // INSTANCES of self-made classes
 InputController input;
 Shader* weightShader = nullptr;
+Shader* debugLineShader = nullptr;
 Skeleton gSkeleton;
 
 
@@ -42,8 +44,29 @@ Skeleton gSkeleton;
 GLFWwindow* gWindow = nullptr;  // Globally accesssable window - used in input-controller
 const aiScene* gScene = nullptr;
 
+GLuint gBoneVAO = 0;
+GLuint gBoneVBO = 0;
+
+// FLAGS
+bool gUseRagdoll = true;
+
+
 
 // ------------------------- STRUCTURES -------------------------
+
+struct PhysicsSkeleton
+{
+    std::vector<PhysicsBone> bones;
+    bool enabled = false;   // Toggle rag-doll on/off
+};
+PhysicsSkeleton gPhysicsSkeleton;
+
+// For line-rendering - for debugging bone-viz
+struct DebugVertex
+{
+    glm::vec3 position;
+};
+
 
 // Stores vertex-bone data, unique per vertex (boneId, weighs affecting the bone)
 struct VertexBoneData
@@ -108,6 +131,71 @@ GLuint gEBO = 0;
 
 
 // ------------------------- UTIL -------------------------
+
+// Apply physics, copies results of physics to localPose in Skeleton::Bone - will be rendered
+void applyPhysicsToSkeleton(const PhysicsSkeleton& physics, Skeleton& skeleton)
+{
+    // Go through all physics-bones
+    for (const PhysicsBone& pb : physics.bones)
+    {
+        Bone& bone = skeleton.bones[pb.boneIndex];
+
+        // Get translation- and rotation-matrices from physics-bone
+        glm::mat4 T = glm::translate(glm::mat4(1.0f), pb.position);
+        glm::mat4 R = glm::mat4_cast(pb.rotation);
+
+        bone.localPose = T * R;
+    }
+}
+
+
+// Build physics bones - one rigid body per bone w. same hierchy and indices
+void buildPhysicsSkeleton(const Skeleton& skeleton, PhysicsSkeleton& physics)
+{
+    physics.bones.clear();
+    physics.bones.reserve(skeleton.bones.size());
+
+    // Go through all bones i skeleton and copy everthing 1 to 1
+    for (size_t i = 0; i < skeleton.bones.size(); i++)
+    {
+        PhysicsBone pb;
+        pb.boneIndex = (int)i;
+        pb.parentIndex = skeleton.bones[i].parentIndex;
+
+        // Initialize physics pose from bind pose
+        const glm::mat4& m = skeleton.bones[i].globalPose;
+        pb.position = glm::vec3(m[3]);
+        pb.rotation = glm::quat_cast(m);
+
+        physics.bones.push_back(pb);
+    }
+}
+
+// Makes a line out of each bone from parent to child
+void buildBoneDebugLines(const Skeleton& skeleton, std::vector<DebugVertex>& outVertices)
+{
+    outVertices.clear();
+
+    // Go through all bones
+    for (size_t i = 0; i < skeleton.bones.size(); i++)
+    {
+        const Bone& bone = skeleton.bones[i];
+
+        // Skipp children of root
+        if (bone.parentIndex == -1)
+            continue;
+
+        const Bone& parent = skeleton.bones[bone.parentIndex];
+
+        // Take pos from parent and child
+        glm::vec3 p0 = glm::vec3(parent.globalPose[3]);
+        glm::vec3 p1 = glm::vec3(bone.globalPose[3]);
+
+        // Add to outVertices
+        outVertices.push_back({ p0 });
+        outVertices.push_back({ p1 });
+    }
+}
 
 // Calculate FinalBoneMatrices - important for vertex-shader
 void buildFinalBoneMatrices(const Skeleton& skeleton, std::vector<glm::mat4>& outMatrices)
@@ -366,7 +454,15 @@ void parse_scene(const aiScene* pScene)
 }
 
 // ------------------------- LOADING -------------------------
+void uploadBoneMatrices(Shader* shader,
+    const std::vector<glm::mat4>& matrices)
+{
+    // Safety clamp in case model has more bones than shader supports
+    int count = (int)matrices.size();
+    count = std::min(count, 128);
 
+    shader->SetMat4Array("uBones", matrices.data(), count);
+}
 
 // Converts parsed Assimp + bone data into GPU-ready buffers, fills GPU vertex-data
 void build_gpu_buffers(const aiScene* pScene)
@@ -518,8 +614,14 @@ bool loadModel(const std::string& filename)
     // Normalize weights AFTER all bones are known
     normalize_vertex_bone_weights();
 
-    // Initializes runtime-pose based on bind-pose, aka set local and global pose (not calculated, only initialized) 
+    // Initialize runtime pose from bind pose
     initializeSkeletonPose(gSkeleton);
+
+    // Compute initial global transforms (bind pose)
+    computeGlobalBoneTransforms(gSkeleton);
+
+    // Build physics skeleton ONCE from bind pose
+    buildPhysicsSkeleton(gSkeleton, gPhysicsSkeleton);
 
     // Set global aiScene
     gScene = pScene;
@@ -571,6 +673,22 @@ int main()
         return -1;
     }
 
+    // Upload and draw debugging-bones
+    glGenVertexArrays(1, &gBoneVAO);
+    glGenBuffers(1, &gBoneVBO);
+
+    glBindVertexArray(gBoneVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+        sizeof(DebugVertex) * 256,
+        nullptr,
+        GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+        sizeof(DebugVertex), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
     // Clear the spurious OpenGL error caused by GLEW + core profile
     glGetError();
 
@@ -592,11 +710,16 @@ int main()
     glDisable(GL_CULL_FACE);
 
     // ----------------------------------------------------
-    // Create and compile the shader used for weight visualization
+    // Create and compile the shader
     // ----------------------------------------------------
     weightShader = new Shader(
         "weight_visualization.vs",
         "weight_visualization.fs"
+    );
+
+    debugLineShader = new Shader(
+        "debugLine_Shader.vs",
+        "debugLine_Shader.fs"
     );
 
     // ----------------------------------------------------
@@ -662,13 +785,32 @@ int main()
         input.Update(deltaTime);
 
         // ------------------------------------------------
-        // Update skeleton pose (animation/physics step (ragdolling)
+        // Update skeleton pose (animation / physics step)
         // ------------------------------------------------
+        
+        if (gUseRagdoll)
+        {
+            // Fake "physics" (later Bullet will go here)
+            float t = (float)glfwGetTime();
 
-        // For now this uses bind pose only.
-        // Later this will be driven by rag-doll physics.
+            for (PhysicsBone& pb : gPhysicsSkeleton.bones)
+            {
+                if (pb.parentIndex != -1)
+                {
+                    pb.rotation =
+                        glm::angleAxis(sinf(t) * 0.3f, glm::vec3(0, 0, 1));
+                }
+            }
+
+            // Apply physics result to skeleton
+            applyPhysicsToSkeleton(gPhysicsSkeleton, gSkeleton);
+        }
+
+        // Rebuild transforms
         computeGlobalBoneTransforms(gSkeleton);
         buildFinalBoneMatrices(gSkeleton, gFinalBoneMatrices);
+        uploadBoneMatrices(weightShader, gFinalBoneMatrices);
+
 
         // ------------------------------------------------
         // Window / viewport handling
@@ -702,35 +844,63 @@ int main()
             input.GetCamera().GetViewMatrix() *
             modelMatrix;
 
-        // ------------------------------------------------
-        // Rendering
-        // ------------------------------------------------
+        if (gUseRagdoll) {
+            // ------------------------------------------------
+            // Rendering - Bones
+            // ------------------------------------------------
 
-        // Activate the shader program
-        weightShader->Use();
+            glDisable(GL_DEPTH_TEST);
 
-        // Upload MVP matrix to the shader
-        weightShader->SetMat4("MVP", MVP);
+            std::vector<DebugVertex> boneDebugVerts;
+            buildBoneDebugLines(gSkeleton, boneDebugVerts);
 
-        // World-space light direction (pointing *towards* model)
-        weightShader->SetVec3("uLightDir", glm::normalize(glm::vec3(7.5f, 10.0f, 1.5f)));
+            glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
+            glBufferSubData(GL_ARRAY_BUFFER,
+                0,
+                boneDebugVerts.size() * sizeof(DebugVertex),
+                boneDebugVerts.data());
 
-        // Camera position for view-based effects later
-        weightShader->SetVec3("uViewPos", glm::vec3(0, 2, 5));
+            debugLineShader->Use();
+            debugLineShader->SetMat4("MVP", MVP);
 
-        // Upload currently selected bone index
-        // Used in fragment shader for weight visualization
-        weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
+            glBindVertexArray(gBoneVAO);
+            glDrawArrays(GL_LINES, 0, (GLsizei)boneDebugVerts.size());
+            glBindVertexArray(0);
 
-        // Bind the VAO containing vertex + index buffers
-        glBindVertexArray(gVAO);
+            glEnable(GL_DEPTH_TEST);
+        }
+        else {
+            // ------------------------------------------------
+            // Rendering - Normal
+            // ------------------------------------------------
 
-        // Draw the entire mesh using indexed triangles
-        glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(),GL_UNSIGNED_INT, 0);
+            // Activate the shader program
+            weightShader->Use();
 
-        // Unbind VAO (just for clean code)
-        glBindVertexArray(0);
+            // Upload MVP matrix to the shader
+            weightShader->SetMat4("MVP", MVP);
 
+            // World-space light direction (pointing *towards* model)
+            weightShader->SetVec3("uLightDir", glm::normalize(glm::vec3(7.5f, 10.0f, 1.5f)));
+
+            // Camera position for view-based effects later
+            weightShader->SetVec3("uViewPos", glm::vec3(0, 2, 5));
+
+            // Upload currently selected bone index
+            // Used in fragment shader for weight visualization
+            weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
+
+            // Bind the VAO containing vertex + index buffers
+            glBindVertexArray(gVAO);
+
+            // Draw the entire mesh using indexed triangles
+            glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
+
+            // Unbind VAO (just for clean code)
+            glBindVertexArray(0);
+        }
+
+        
         // ------------------------------------------------
         // Present rendered image to the screen
         // ------------------------------------------------

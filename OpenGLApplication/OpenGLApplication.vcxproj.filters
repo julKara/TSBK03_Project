@@ -44,5 +44,8 @@
     <ClInclude Include="skeleton.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="phyicsBone.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

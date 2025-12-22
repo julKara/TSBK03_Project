@@ -140,6 +140,7 @@
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="input_controller.h" />
+    <ClInclude Include="phyicsBone.h" />
     <ClInclude Include="shader.h" />
     <ClInclude Include="skeleton.h" />
   </ItemGroup>
