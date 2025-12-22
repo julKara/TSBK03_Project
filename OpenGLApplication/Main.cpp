@@ -13,11 +13,16 @@
 // Others from Include - folder
 #include <glew.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>     // for make_mat4
+#include <glm/gtc/matrix_transform.hpp>
+
 
 
 // Self-made Headers
 #include "input_controller.h"
 #include "shader.h"
+#include "skeleton.h"
 
 
 // CONSTANTS & MACROS
@@ -30,6 +35,7 @@ float gLastTime = 0.0f;
 // INSTANCES of self-made classes
 InputController input;
 Shader* weightShader = nullptr;
+Skeleton gSkeleton;
 
 
 // INSTANCES of other classes
@@ -84,7 +90,6 @@ struct VertexGPU
 // Other structures: Mapping from vertices to the bones that influece them
 std::vector<VertexBoneData> vertex_to_bones;                    // Mapping from vertices to the bones that influece them
 std::vector<int> mesh_base_vertex;                              // Stores all start-vertices of all meshes: Mesh 1 starts at index 0, Mesh 2 starts at index N (N = sizeof(Mesh 1))...
-std::map<std::string, unsigned int> bone_name_to_index_map;     // Mapping of bone-name to index, Assimp uses strings for names otherwise, effective for getting bone-ids
 
 static int space_count = 0;
 
@@ -100,27 +105,28 @@ GLuint gVBO = 0;
 GLuint gEBO = 0;
 
 
-
 // ------------------------- UTIL -------------------------
 
 // Returns bone-id of input-bone and adds bones to bone_name_to_index_map
+// Returns bone-id of input-bone and adds bones to the skeleton
 int get_bone_id(const aiBone* pBone)
 {
-    int bone_id = 0;
     std::string bone_name(pBone->mName.C_Str());
 
-    // If bone-name is not in map, add it
-    if (bone_name_to_index_map.find(bone_name) == bone_name_to_index_map.end()) {
-        
-        bone_id = (int)bone_name_to_index_map.size(); // bone-id becomes the current size of map
-        bone_name_to_index_map[bone_name] = bone_id;    // "Connect" name to id via map
-    }
-    else {  // If bone is in map, return id of input-bone's name
+    auto it = gSkeleton.boneNameToIndex.find(bone_name);
+    if (it != gSkeleton.boneNameToIndex.end())
+        return it->second;
 
-        bone_id = bone_name_to_index_map[bone_name];
-    }
+    // [ADDED] Create new bone entry
+    Bone bone;
+    bone.name = bone_name;
+    bone.offsetMatrix = glm::transpose(glm::make_mat4(&pBone->mOffsetMatrix.a1));
 
-    return bone_id;
+    int newIndex = (int)gSkeleton.bones.size();
+    gSkeleton.bones.push_back(bone);
+    gSkeleton.boneNameToIndex[bone_name] = newIndex;
+
+    return newIndex;
 }
 
 void print_space()
@@ -259,20 +265,36 @@ void parse_meshes(const aiScene* pScene)
 }
 
 // Parses each individual node recurivly by going down the tree.
-void parse_node(const aiNode* pNode)
+void parse_node(const aiNode* pNode, int parentBoneIndex = -1)
 {
-    // Print some info
-    print_space(); printf("Node name: '%s' num children %d num meshes %d\n", pNode->mName.C_Str(), pNode->mNumChildren, pNode->mNumMeshes);
-    print_space(); printf("Node transformation:\n");
+    print_space();
+    printf("Node name: '%s' num children %d num meshes %d\n",
+        pNode->mName.C_Str(),
+        pNode->mNumChildren,
+        pNode->mNumMeshes);
+
+    print_space();
+    printf("Node transformation:\n");
     print_assimp_matrix(pNode->mTransformation);
+
+    int currentBoneIndex = parentBoneIndex;
+
+    // [ADDED] If this node corresponds to a bone, store hierarchy
+    auto it = gSkeleton.boneNameToIndex.find(pNode->mName.C_Str());
+    if (it != gSkeleton.boneNameToIndex.end())
+    {
+        currentBoneIndex = it->second;
+        gSkeleton.bones[currentBoneIndex].parentIndex = parentBoneIndex;
+        gSkeleton.bones[currentBoneIndex].localBindPose =
+            glm::transpose(glm::make_mat4(&pNode->mTransformation.a1));
+    }
 
     space_count += 4;
 
-    // Recursivly go down the tree
     for (unsigned int i = 0; i < pNode->mNumChildren; i++) {
         printf("\n");
         print_space(); printf("--- %d ---\n", i);
-        parse_node(pNode->mChildren[i]);
+        parse_node(pNode->mChildren[i], currentBoneIndex);
     }
 
     space_count -= 4;
@@ -284,7 +306,7 @@ void parse_hierarchy(const aiScene* pScene)
     printf("\n*******************************************************\n");
     printf("Parsing the node hierarchy\n");
 
-    parse_node(pScene->mRootNode);
+    parse_node(pScene->mRootNode, -1);
 }
 
 // Parses the file-read scene (meshes - since we will only use models FOR NOW - will handle all scene stuff)
@@ -423,9 +445,9 @@ bool loadModel(const std::string& filename)
 {
     // Build full path: Models/<filename>
     std::string fullPath = "../Models/" + filename;
-    
+
     Assimp::Importer importer;  // Assimp importer, handles Assimp parsing
-    const aiScene* pScene = importer.ReadFile(fullPath, ASSIMP_LOAD_FLAGS); // Create scene by reading file (root structure of the imported data)
+    const aiScene* pScene = importer.ReadFile(fullPath, ASSIMP_LOAD_FLAGS);
 
     // Test scene
     if (!pScene) {
@@ -434,23 +456,34 @@ bool loadModel(const std::string& filename)
         return false;
     }
 
-    // Parse scene (only parses meshes)
+    // IMPORTANT:
+    // Clear previous data so loading multiple models works correctly
+    // and bone indices start from 0 again
+    vertex_to_bones.clear();
+    mesh_base_vertex.clear();
+    gpuVertices.clear();
+    gpuIndices.clear();
+
+    gSkeleton.bones.clear();               
+    gSkeleton.boneNameToIndex.clear();      
+
+    // Parse scene (meshes + bones + hierarchy)
     parse_scene(pScene);
 
     // Normalize weights AFTER all bones are known
     normalize_vertex_bone_weights();
 
     // Set global aiScene
-    gScene = pScene;  
+    gScene = pScene;
 
-    // Build and create buffers when model has been parsed
+    // Build and create GPU buffers
     build_gpu_buffers(importer.GetScene());
     create_opengl_buffers();
 
     // Inform input controller how many bones are available
-    input.SetMaxBoneIndex((int)bone_name_to_index_map.size());
-    
-    // Return true if succesful process
+    // This replaces the old bone_name_to_index_map.size()
+    input.SetMaxBoneIndex(static_cast<int>(gSkeleton.bones.size()));
+
     return true;
 }
 
@@ -545,6 +578,18 @@ int main()
     if (!loadModel(modelName)) {
         std::cerr << "Failed to load model.\n";
         return 1;
+    }
+
+    // Skeleton sanity check (parent '-1' means parent is root)
+    printf("\nSkeleton summary:\n");
+    printf("Total bones: %zu\n", gSkeleton.bones.size());
+
+    for (size_t i = 0; i < gSkeleton.bones.size(); i++)
+    {
+        printf("Bone %zu: '%s' parent %d\n",
+            i,
+            gSkeleton.bones[i].name.c_str(),
+            gSkeleton.bones[i].parentIndex);
     }
 
     // ----------------------------------------------------

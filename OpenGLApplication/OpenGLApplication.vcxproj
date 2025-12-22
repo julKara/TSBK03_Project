@@ -141,6 +141,7 @@
     <ClInclude Include="camera.h" />
     <ClInclude Include="input_controller.h" />
     <ClInclude Include="shader.h" />
+    <ClInclude Include="skeleton.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
