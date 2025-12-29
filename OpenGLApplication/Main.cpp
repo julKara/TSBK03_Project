@@ -60,7 +60,7 @@ btSequentialImpulseConstraintSolver* gSolver = nullptr;*/
 
 
 // FLAGS
-bool gUseRagdoll = true;
+bool gUseRagdoll = false;
 
 
 
@@ -445,7 +445,7 @@ void parse_node(const aiNode* pNode, int parentBoneIndex = -1)
 
     int currentBoneIndex = parentBoneIndex;
 
-    // [ADDED] If this node corresponds to a bone, store hierarchy
+    // If this node corresponds to a bone, store hierarchy
     auto it = gSkeleton.boneNameToIndex.find(pNode->mName.C_Str());
     if (it != gSkeleton.boneNameToIndex.end())
     {
@@ -857,8 +857,8 @@ int main()
         // Rebuild transforms
         computeGlobalBoneTransforms(gSkeleton);
         buildFinalBoneMatrices(gSkeleton, gFinalBoneMatrices);
-        uploadBoneMatrices(weightShader, gFinalBoneMatrices); // Use weight-shader
-        //uploadBoneMatrices(skinningShader, gFinalBoneMatrices); // Use skinning-shader
+        //uploadBoneMatrices(weightShader, gFinalBoneMatrices); // Use weight-shader
+        uploadBoneMatrices(skinningShader, gFinalBoneMatrices); // Use skinning-shader
 
 
 
@@ -932,7 +932,7 @@ int main()
         }
         else {
             // ------------------------------------------------
-            /*/ Rendering - Weights
+            // Rendering - Weights
             // ------------------------------------------------
 
             // Activate the shader program
@@ -958,10 +958,10 @@ int main()
             glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
 
             // Unbind VAO (just for clean code)
-            glBindVertexArray(0);*/
+            glBindVertexArray(0);
 
             // ------------------------------------------------
-            // Rendering - Skinning
+            /*/ Rendering - Skinning
             // ------------------------------------------------
             skinningShader->Use();
             skinningShader->SetMat4("MVP", MVP);
@@ -971,7 +971,7 @@ int main()
                 (GLsizei)gpuIndices.size(),
                 GL_UNSIGNED_INT,
                 0);
-            glBindVertexArray(0);
+            glBindVertexArray(0);*/
 
         }
 
