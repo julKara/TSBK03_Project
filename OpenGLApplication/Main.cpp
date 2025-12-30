@@ -823,7 +823,7 @@ int main()
         // Update skeleton pose (animation / physics step)
         // ------------------------------------------------
         
-        if (gUseRagdoll)
+        /*if (gUseRagdoll)
         {
             // Fake "physics" (later Bullet will go here)
             float t = (float)glfwGetTime();
@@ -839,7 +839,7 @@ int main()
 
             // Apply physics result to skeleton
             applyPhysicsToSkeleton(gPhysicsSkeleton, gSkeleton);
-        }
+        }*/
 
         // TESTING - Makes model bend over, MUST USE SKINNING SHADER or Lines (but must comment out physics)
         if (gSkeleton.bones.size() > 1)
@@ -915,7 +915,7 @@ int main()
 
             glEnable(GL_DEPTH_TEST);
 
-            /*/ Physics + Skinning
+            // Physics + Skinning
             skinningShader->Use();
             skinningShader->SetMat4("MVP", MVP);
 
@@ -924,7 +924,7 @@ int main()
                 (GLsizei)gpuIndices.size(),
                 GL_UNSIGNED_INT,
                 0);
-            glBindVertexArray(0);*/
+            glBindVertexArray(0);
         }
         else {
             // ------------------------------------------------
