@@ -60,7 +60,7 @@ btSequentialImpulseConstraintSolver* gSolver = nullptr;*/
 
 
 // FLAGS
-bool gUseRagdoll = false;
+bool gUseRagdoll = true;
 
 
 
@@ -283,7 +283,7 @@ int get_bone_id(const aiBone* pBone)
     if (it != gSkeleton.boneNameToIndex.end())
         return it->second;
 
-    // [ADDED] Create new bone entry
+    // Create new bone entry
     Bone bone;
     bone.name = bone_name;
     bone.offsetMatrix = glm::transpose(glm::make_mat4(&pBone->mOffsetMatrix.a1));
@@ -710,13 +710,9 @@ int main()
 
     glBindVertexArray(gBoneVAO);
     glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
-    glBufferData(GL_ARRAY_BUFFER,
-        sizeof(DebugVertex) * 256,
-        nullptr,
-        GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(DebugVertex) * 256, nullptr, GL_DYNAMIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-        sizeof(DebugVertex), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)0);
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
@@ -919,7 +915,7 @@ int main()
 
             glEnable(GL_DEPTH_TEST);
 
-            // Physics + Skinning
+            /*/ Physics + Skinning
             skinningShader->Use();
             skinningShader->SetMat4("MVP", MVP);
 
@@ -928,7 +924,7 @@ int main()
                 (GLsizei)gpuIndices.size(),
                 GL_UNSIGNED_INT,
                 0);
-            glBindVertexArray(0);
+            glBindVertexArray(0);*/
         }
         else {
             // ------------------------------------------------
