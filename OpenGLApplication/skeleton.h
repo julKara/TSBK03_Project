@@ -4,6 +4,16 @@
 #include <vector>
 #include <unordered_map>
 
+/*
+* Class that represents a skeleton while the program is running.
+* 
+* Will be traversed for skinning.
+* 
+* Needed since Assimp doesn't provide a skeleton, only the nodes
+* where some of which are bones.
+*/
+
+
 // Represents a single bone in a skeleton
 struct Bone
 {
@@ -24,5 +34,5 @@ struct Bone
 struct Skeleton
 {
     std::vector<Bone> bones;
-    std::unordered_map<std::string, int> boneNameToIndex;
+    std::unordered_map<std::string, int> boneNameToIndex;   // Has same index/placement as in Main::vertex_to_bones
 };
