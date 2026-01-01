@@ -1,6 +1,9 @@
-// Implements camera math and movement
-
 #include "camera.h"
+
+/*
+* Very basic camera implementation, needed for having 
+* interaction which is needed for differing models.
+*/
 
 const float SPEED = 6.0;
 

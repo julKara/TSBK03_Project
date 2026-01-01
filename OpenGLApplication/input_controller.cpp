@@ -1,18 +1,24 @@
-// Read GLFW key-states
-// Updates camera and bone-index
-
 #include "input_controller.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 
+/*
+* Handles all interaction with the program. Possible
+* interactions include:
+*   * W A S D - keys for x- y-axis camera movement
+*   * Q E - key for z-axis camera movement
+*   * Up Down Arrows - increase/decrease current bone-index (weight-viz)
+*   * Dragging - Rotate model
+*/
+
 // Globally accessible window
 extern GLFWwindow* gWindow;
 
-InputController::InputController()
-    : currentBoneIndex(0)
+InputController::InputController() : currentBoneIndex(0)
 {
 }
 
+// Set true when key is pressed
 bool IsKeyPressed(int key)
 {
     if (!gWindow)
@@ -21,11 +27,12 @@ bool IsKeyPressed(int key)
     return glfwGetKey(gWindow, key) == GLFW_PRESS;
 }
 
+// Update that handles all inputs
 void InputController::Update(float deltaTime)
 { 
     float speed = 5.0f * deltaTime;
 
-    // Normal camera movement(W/ A / S / D) ----------------
+    // Normal camera movement(W/A/S/D) ----------------
     if (IsKeyPressed(GLFW_KEY_W)) {
         //printf("\n Pressed W!\n");
         camera.MoveForward(speed);
@@ -43,8 +50,7 @@ void InputController::Update(float deltaTime)
         camera.MoveRight(speed);
     }
 
-    // Vertical camera movement (ArrowUp / ArrowDown) ----------------
-    // ---------------- Bone index selection ----------------
+    // Bone index selection ----------------
 
     // Check current key states
     bool upPressed = IsKeyPressed(GLFW_KEY_UP);
@@ -74,7 +80,7 @@ void InputController::Update(float deltaTime)
     prevUpPressed = upPressed;
     prevDownPressed = downPressed;
 
-    // Vertical camera movement (Q / E) ----------------
+    // Vertical camera movement (Q/E) ----------------
 
     // Move camera up in world space
     if (IsKeyPressed(GLFW_KEY_E))
@@ -91,15 +97,16 @@ void InputController::Update(float deltaTime)
 
     // Mouse drag handling ----------------
 
+    // Get current mouse-pos
     double mouseX, mouseY;
     glfwGetCursorPos(gWindow, &mouseX, &mouseY);
 
-    // Left mouse button pressed -> start dragging
+    // Left mouse button pressed -> drag model
     if (glfwGetMouseButton(gWindow, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
     {
         if (!isDragging)
         {
-            // First frame of drag: just store position
+            // First frame of drag, just store position
             isDragging = true;
             lastMouseX = mouseX;
             lastMouseY = mouseY;
@@ -110,16 +117,13 @@ void InputController::Update(float deltaTime)
             double dx = mouseX - lastMouseX;
             double dy = mouseY - lastMouseY;
 
+            // Update for next drag
             lastMouseX = mouseX;
             lastMouseY = mouseY;
 
-            // Accumulate rotation angles
+            // Add on rotation angles
             modelYaw += (float)dx * mouseSensitivity;
             modelPitch += (float)dy * mouseSensitivity;
-
-            // Optional: clamp pitch to avoid flipping
-            const float limit = glm::radians(89.0f);
-            modelPitch = glm::clamp(modelPitch, -limit, limit);
         }
     }
     else
@@ -129,6 +133,7 @@ void InputController::Update(float deltaTime)
     }
 }
 
+// ------------------------- GET- SET-FUNCTIONS -------------------------
 void InputController::SetMaxBoneIndex(int maxIndex)
 {
     maxBoneIndex = std::max(0, maxIndex);
@@ -144,13 +149,14 @@ Camera& InputController::GetCamera()
     return camera;
 }
 
+// Returns model rotation matrix, necessary for dragging
 glm::mat4 InputController::GetModelRotationMatrix() const
 {
     glm::mat4 rot(1.0f);
 
-    // Rotate around Y first (yaw), then X (pitch)
-    rot = glm::rotate(rot, modelYaw,   glm::vec3(0, 1, 0));
-    rot = glm::rotate(rot, modelPitch, glm::vec3(1, 0, 0));
+    // Rotate around Y (yaw), then X (pitch)
+    rot = glm::rotate(rot, modelYaw,   glm::vec3(0, 1, 0)); // Y
+    rot = glm::rotate(rot, modelPitch, glm::vec3(1, 0, 0)); // X
 
     return rot;
 }

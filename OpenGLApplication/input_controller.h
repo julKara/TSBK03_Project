@@ -1,8 +1,14 @@
-// Keyboard-handling
-// Tracks current bone-index
-
 #pragma once
 #include "camera.h"
+
+/*
+* Handles all interaction with the program. Possible
+* interactions include:
+*   * W A S D - keys for x- y-axis camera movement
+*   * Q E - key for z-axis camera movement
+*   * Up Down Arrows - increase/decrease current bone-index (weight-viz)
+*   * Dragging - Rotate model
+*/
 
 class InputController
 {
@@ -11,13 +17,19 @@ public:
 
     void Update(float deltaTime);
 
-    // Sets the maximum valid bone index (exclusive)
+    // Sets the maximum valid bone index
     void SetMaxBoneIndex(int maxIndex);
     
+    
+    // Get-functions ----------------
     int GetCurrentBoneIndex() const;
 
     Camera& GetCamera();
+    
+    glm::mat4 GetModelRotationMatrix() const;
 
+    // Button presses ----------------
+    
     // Tracks previous key states to detect single key presses
     bool prevUpPressed = false;
     bool prevDownPressed = false;
@@ -38,12 +50,11 @@ public:
     // Sensitivity factor for drag rotation
     float mouseSensitivity = 0.005f;
 
-    // Returns a rotation matrix for the model
-    glm::mat4 GetModelRotationMatrix() const;
-
 private:
+
     Camera camera;
     int currentBoneIndex;
-    // Maximum valid bone index(set externally)
+    
+    // Maximum valid bone index(set in Main)
     int maxBoneIndex = 0;
 };
