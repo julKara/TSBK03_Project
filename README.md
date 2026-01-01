@@ -6,6 +6,8 @@ There is descriptive comments at the start of each code-file the sums up the pur
 
 There are also alot of "debugging-prints" that has been commented out left in the code. Uncomment these for deeper insight of certian structures.
 
+There is 3 visualization-modes using 3 shaders. You can also enable/disable "fake physics" which was a placeholder that was left in. Ctrl + f "mode" to find these. 
+
 The most relevant files are:
 *  `Main.cpp`: Contains the application entry point and overall program flow.
 *  `skeleton.h`: Defines the core data structures used to represent a skeletal hierarchy.
