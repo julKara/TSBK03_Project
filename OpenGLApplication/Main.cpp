@@ -49,9 +49,9 @@ GLuint gBoneVBO = 0;    // Bone-buffer input VBO
 bool gUseRagdoll = false; // Must also have bonelines or normalkinning true or both
 
 // The diffrent "modes" of the program
-bool weightVisMode = false;     // Activates the weight-viz mode (need to drag model)
-bool boneLinesMode = true;     // Draws the skeleton as yellow lines (can be combine w.normalSkinning)
-bool normalSkinning = true;    // Normal shader for skinning
+bool weightVisMode = true;     // Activates the weight-viz mode (need to drag model)
+bool boneLinesMode = false;     // Draws the skeleton as yellow lines (can be combine w.normalSkinning)
+bool normalSkinning = false;    // Normal shader for skinning
 
 
 

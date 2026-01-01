@@ -14,16 +14,19 @@ out vec3 vNormal;
 
 void main()
 {
+    // Compute skinning matrix
     mat4 skinMatrix =
           aWeights.x * uBones[aBoneIDs.x]
         + aWeights.y * uBones[aBoneIDs.y]
         + aWeights.z * uBones[aBoneIDs.z]
         + aWeights.w * uBones[aBoneIDs.w];
 
+    // Apply skinning
     vec4 skinnedPosition = skinMatrix * vec4(aPosition, 1.0);
 
+    // Final position
     gl_Position = MVP * skinnedPosition;
 
-    // Transform normal (simple version) - can be removed
+    // Transform normal
     vNormal = mat3(skinMatrix) * aNormal;
 }

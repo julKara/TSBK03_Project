@@ -21,19 +21,20 @@ vec3 WeightToColor(float w)
 void main()
 {
     // Find weight of selected bone
+    vec3 baseColor = vec3(0.0588, 0.0588, 0.4118); // default dark blue
     float weight = 0.0;
     for (int i = 0; i < 4; i++)
     {
         if (int(vBoneIDs[i]) == uSelectedBone)
             weight = vWeights[i];
-    }
 
-    // Base color from bone weight
-    vec3 baseColor = mix(
-        vec3(0.0588, 0.0588, 0.4118),   // dark blue base color
-        WeightToColor(weight),
-        weight
-    );
+            // Base color from bone weight
+            baseColor = mix(
+                vec3(0.0588, 0.0588, 0.4118),   // dark blue base color
+                WeightToColor(weight),
+                weight
+            );
+    }
 
     // Simple diffuse lighting
     vec3 N = normalize(vNormal);
