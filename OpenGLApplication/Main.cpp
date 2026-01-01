@@ -17,21 +17,19 @@
 #include <glm/gtc/type_ptr.hpp>     // for make_mat4
 #include <glm/gtc/matrix_transform.hpp>
 
-
-
-// Self-made Headers
+// "Self-made" Headers for classes
 #include "input_controller.h"
 #include "shader.h"
 #include "skeleton.h"
 #include "phyicsBone.h"
 
 
-// CONSTANTS & MACROS
+// Global variables & MACROS
 float gLastTime = 0.0f;
 
-#define MAX_NUM_BONES_PER_VERTEX 4  // ADJUSTABLE
+#define MAX_NUM_BONES_PER_VERTEX 4  // ADJUSTABLE - Maximum nr of bones a single vertex can be affected by
 
-#define ARRAY_SIZE_IN_ELEMENTS(a) (sizeof(a)/sizeof(a[0]))  //
+static int space_count = 0; // Counter for printig matrices
 
 // INSTANCES of self-made classes
 InputController input;
@@ -43,26 +41,32 @@ Skeleton gSkeleton;
 
 // INSTANCES of other classes
 GLFWwindow* gWindow = nullptr;  // Globally accesssable window - used in input-controller
-const aiScene* gScene = nullptr;
-
-GLuint gBoneVAO = 0;
-GLuint gBoneVBO = 0;
+const aiScene* gScene = nullptr;    // Globally accessable refrence to aiScene, used for retriving model-data via assimp
+GLuint gBoneVAO = 0;    // Bone-buffer input VAO
+GLuint gBoneVBO = 0;    // Bone-buffer input VBO
 
 // FLAGS
 bool gUseRagdoll = true;
+
+// The diffrent "modes" of the program
+bool weightVisMode = false;     // Activates the weight-viz mode
+bool boneLinesMode = true;     // Draws the skeleton as yellow lines
+bool normalSkinning = false;    // Normal shader for skinning
 
 
 
 // ------------------------- STRUCTURES -------------------------
 
+// The skeleton comprised of physics-bones instead of regular ones
 struct PhysicsSkeleton
 {
     std::vector<PhysicsBone> bones;
     bool enabled = false;   // Toggle rag-doll on/off
 };
-PhysicsSkeleton gPhysicsSkeleton;
+PhysicsSkeleton gPhysicsSkeleton;   // Global variable
 
-// For line-rendering - for debugging bone-viz
+
+// For line-rendering - for debugging bone-viz (not really necessary, but I'm to lazy to remove)
 struct DebugVertex
 {
     glm::vec3 position;
@@ -85,7 +89,7 @@ struct VertexBoneData
     void AddBoneData(unsigned int BoneID, float Weight)
     {
         // Go through all of BoneIds
-        for (unsigned int i = 0; i < ARRAY_SIZE_IN_ELEMENTS(BoneIDs); i++) {
+        for (unsigned int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++) {
             
             // Add data if there is none
             if (Weights[i] == 0.0) {
@@ -101,7 +105,7 @@ struct VertexBoneData
     }
 };
 
-// GPU-side vertex structure: derived from existing CPU-side arrays, needed to "render"
+// GPU-side vertex structure, needed to "render"
 struct VertexGPU
 {
     glm::vec3 Position;     // Vertex position
@@ -114,10 +118,7 @@ struct VertexGPU
 // Other structures: Mapping from vertices to the bones that influece them
 std::vector<VertexBoneData> vertex_to_bones;                    // Mapping from vertices to the bones that influece them
 std::vector<int> mesh_base_vertex;                              // Stores all start-vertices of all meshes: Mesh 1 starts at index 0, Mesh 2 starts at index N (N = sizeof(Mesh 1))...
-std::vector<glm::mat4> gFinalBoneMatrices;                      // Stores transformations for final-bonesm used to render in vertex-shader
-
-
-static int space_count = 0;
+std::vector<glm::mat4> gFinalBoneMatrices;                      // Stores transformations for final-bones used to render in vertex-shader
 
 // Global GPU buffers and containers -----------------
 
@@ -139,28 +140,30 @@ void applyPhysicsToSkeleton(const PhysicsSkeleton& physics, Skeleton& skeleton)
     // Go through all physics-bones
     for (const PhysicsBone& pb : physics.bones)
     {
+        // Get corresponding bone from "normal" skeleton
         Bone& bone = skeleton.bones[pb.boneIndex];
 
         // Get translation- and rotation-matrices from physics-bone
         glm::mat4 T = glm::translate(glm::mat4(1.0f), pb.position);
         glm::mat4 R = glm::mat4_cast(pb.rotation);
 
+        // Set local pose using translation and rotation instead of pose
         bone.localPose = T * R;
     }
 }
 
 
-// Build physics bones - one rigid body per bone w. same hierchy and indices
+// Build physics bones - one rigid body per bone w. same hierchy and indices as "normal" skeleton
 void buildPhysicsSkeleton(const Skeleton& skeleton, PhysicsSkeleton& physics)
 {
     physics.bones.clear();
     physics.bones.reserve(skeleton.bones.size());
 
-    // Go through all bones i skeleton and copy everthing 1 to 1
+    // Go through all bones i skeleton and copy everthing 1 to 1, initialize the rest
     for (size_t i = 0; i < skeleton.bones.size(); i++)
     {
         PhysicsBone pb;
-        pb.boneIndex = (int)i;
+        pb.boneIndex = (int)i;  // Index should always be int
         pb.parentIndex = skeleton.bones[i].parentIndex;
 
         // Initialize physics pose from bind pose
@@ -192,7 +195,7 @@ void buildBoneDebugLines(const Skeleton& skeleton, std::vector<DebugVertex>& out
         glm::vec3 p0 = glm::vec3(parent.globalPose[3]);
         glm::vec3 p1 = glm::vec3(bone.globalPose[3]);
 
-        // Add to outVertices
+        // Add to outVertices, removes all faces, keeps only relation
         outVertices.push_back({ p0 });
         outVertices.push_back({ p1 });
     }
@@ -220,7 +223,7 @@ void computeGlobalBoneTransforms(Skeleton& skeleton)
 
         if (bone.parentIndex == -1)
         {
-            // Root bone: local == global (doesnt have parent)
+            // Root bone: local = global (doesnt have parent)
             bone.globalPose = bone.localPose;
         }
         else
@@ -232,7 +235,7 @@ void computeGlobalBoneTransforms(Skeleton& skeleton)
     }
 }
 
-// Initializes runtime-posem based on bind-pose
+// Initializes runtime-pose based on bind-pose
 void initializeSkeletonPose(Skeleton& skeleton)
 {
     // Go through all bones in skeleton
@@ -244,27 +247,29 @@ void initializeSkeletonPose(Skeleton& skeleton)
     }
 }
 
-// Returns bone-id of input-bone and adds bones to the skeleton
+// Returns bone-id from skeleton::boneNameToIndex of input-bone or adds bone to it then return, used when parsing nodes
 int get_bone_id(const aiBone* pBone)
 {
     std::string bone_name(pBone->mName.C_Str());
 
+    // Check if bone exits in list, if so return id
     auto it = gSkeleton.boneNameToIndex.find(bone_name);
     if (it != gSkeleton.boneNameToIndex.end())
-        return it->second;
+        return it->second;  // Return id
 
     // Create new bone entry
     Bone bone;
     bone.name = bone_name;
     bone.offsetMatrix = glm::transpose(glm::make_mat4(&pBone->mOffsetMatrix.a1));
-
     int newIndex = (int)gSkeleton.bones.size();
     gSkeleton.bones.push_back(bone);
     gSkeleton.boneNameToIndex[bone_name] = newIndex;
 
+    // Return index of new bone
     return newIndex;
 }
 
+// Used for printing matrices
 void print_space()
 {
     for (int i = 0; i < space_count; i++) {
@@ -272,7 +277,7 @@ void print_space()
     }
 }
 
-// Prints out matrices - used for ex offset-matrices
+// Prints out matrices - used for offset-matrices
 void print_assimp_matrix(const aiMatrix4x4& m)
 {
     print_space(); printf("\t\t%f %f %f %f\n", m.a1, m.a2, m.a3, m.a4);
@@ -307,12 +312,9 @@ void normalize_vertex_bone_weights()
 // Parses a single bone - fills bone_name_to_index_map and vertex_to_bones
 void parse_single_bone(int mesh_index, const aiBone* pBone)
 {
-    // Print bone-info: indes, its name (C-string, null char at the end) and number of weights affecting it
-    //printf("\t\t Bone %d: '%s' num vertices affected by this bone: %d\n", bone_index, pBone->mName.C_Str(), pBone->mNumWeights);  // OLD
-
     printf("\t\tBone '%s': num vertices affected by this bone: %d\n", pBone->mName.C_Str(), pBone->mNumWeights);
 
-    // Get bone-id of input-bone while adding bone to bone_name_to_index_map
+    // Get (and/or set) bone-id from skeleton::boneNameToIndex 
     int bone_id = get_bone_id(pBone);
     //printf("\t\tbone id %d\n", bone_id);
 
@@ -424,7 +426,7 @@ void parse_node(const aiNode* pNode, int parentBoneIndex = -1)
         gSkeleton.bones[currentBoneIndex].localBindPose = glm::transpose(glm::make_mat4(&pNode->mTransformation.a1));
     }
 
-    space_count += 4;
+    space_count += 4;   // Only used for printing matrices
 
     for (unsigned int i = 0; i < pNode->mNumChildren; i++) {
         printf("\n");
@@ -438,13 +440,13 @@ void parse_node(const aiNode* pNode, int parentBoneIndex = -1)
 // Parses scene from the root
 void parse_hierarchy(const aiScene* pScene)
 {
-    printf("\n*******************************************************\n");
+    printf("\n**************************************************\n");
     printf("Parsing the node hierarchy\n");
 
     parse_node(pScene->mRootNode, -1);
 }
 
-// Parses the file-read scene (meshes - since we will only use models FOR NOW - will handle all scene stuff)
+// Parses the file-read scene, fills up many data structures
 void parse_scene(const aiScene* pScene)
 {
     // Go through all meshes and fill up data-arrays
@@ -454,14 +456,16 @@ void parse_scene(const aiScene* pScene)
     parse_hierarchy(pScene);
 }
 
-// ------------------------- LOADING -------------------------
-void uploadBoneMatrices(Shader* shader,
-    const std::vector<glm::mat4>& matrices)
+// ------------------------- LOADING & UPLOADING  -------------------------
+
+// Upload bones as uniform attribute to shader
+void uploadBoneMatrices(Shader* shader, const std::vector<glm::mat4>& matrices)
 {
     // Safety clamp in case model has more bones than shader supports
     int count = (int)matrices.size();
     count = std::min(count, 128);
 
+    // Upload bones as uniform attribute to shader
     shader->SetMat4Array("uBones", matrices.data(), count);
 }
 
@@ -470,11 +474,12 @@ void build_gpu_buffers(const aiScene* pScene)
 {
     gpuVertices.resize(vertex_to_bones.size());
 
-    // Fill vertex data
+    // Go through all meshes
     for (unsigned int i = 0; i < pScene->mNumMeshes; i++)
     {
         const aiMesh* pMesh = pScene->mMeshes[i];
-
+        
+        // Go through all vertices within current mesh
         for (unsigned int v = 0; v < pMesh->mNumVertices; v++)
         {
             unsigned int globalID = mesh_base_vertex[i] + v;
@@ -493,7 +498,7 @@ void build_gpu_buffers(const aiScene* pScene)
                 pMesh->mNormals[v].z
             );
 
-            // Copy bone IDs and weights from your structure
+            // Copy bone IDs
             gpuVertices[globalID].BoneIDs = glm::ivec4(
                 vertex_to_bones[globalID].BoneIDs[0],
                 vertex_to_bones[globalID].BoneIDs[1],
@@ -501,6 +506,7 @@ void build_gpu_buffers(const aiScene* pScene)
                 vertex_to_bones[globalID].BoneIDs[3]
             );
 
+            // Copy bone weights
             gpuVertices[globalID].Weights = glm::vec4(
                 vertex_to_bones[globalID].Weights[0],
                 vertex_to_bones[globalID].Weights[1],
@@ -509,7 +515,7 @@ void build_gpu_buffers(const aiScene* pScene)
             );
         }
 
-        // Build index buffer
+        // Build index buffer by going through all faces within current mesh
         for (unsigned int f = 0; f < pMesh->mNumFaces; f++)
         {
             const aiFace& face = pMesh->mFaces[f];
@@ -536,12 +542,15 @@ void build_gpu_buffers(const aiScene* pScene)
 // Uploads GPU vertex/index data to OpenGL bu creating VAO, VBO and EBO
 void create_opengl_buffers()
 {
+    // Create VAO, VBO and EBO
     glGenVertexArrays(1, &gVAO);
     glGenBuffers(1, &gVBO);
     glGenBuffers(1, &gEBO);
 
+    // Bind attributes to shader via VAO
     glBindVertexArray(gVAO);
 
+    // Bind vertices to VBO
     glBindBuffer(GL_ARRAY_BUFFER, gVBO);
     glBufferData(
         GL_ARRAY_BUFFER,
@@ -550,6 +559,7 @@ void create_opengl_buffers()
         GL_STATIC_DRAW
     );
 
+    // Bind indices to EBO
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gEBO);
     glBufferData(
         GL_ELEMENT_ARRAY_BUFFER,
@@ -558,7 +568,7 @@ void create_opengl_buffers()
         GL_STATIC_DRAW
     );
 
-    // Upload attributes to shader ----------------------
+    // Upload attributes to shader (ordered) ----------------------
 
     // Vertex position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexGPU), (void*)0);
@@ -583,14 +593,14 @@ void create_opengl_buffers()
 // Load-flags for reading: Triangulate all polygons in mesh + generate normals + join identical vertices (may needed after triangulate)
 #define ASSIMP_LOAD_FLAGS (aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices)
 
-// Loading model in "Models"-folder
+// Loads model in "Models"-folder and initializes new structurs
 bool loadModel(const std::string& filename)
 {
     // Build full path: Models/<filename>
     std::string fullPath = "../Models/" + filename;
 
     Assimp::Importer importer;  // Assimp importer, handles Assimp parsing
-    const aiScene* pScene = importer.ReadFile(fullPath, ASSIMP_LOAD_FLAGS);
+    const aiScene* pScene = importer.ReadFile(fullPath, ASSIMP_LOAD_FLAGS); // Use flags from above
 
     // Test scene
     if (!pScene) {
@@ -605,7 +615,6 @@ bool loadModel(const std::string& filename)
     mesh_base_vertex.clear();
     gpuVertices.clear();
     gpuIndices.clear();
-
     gSkeleton.bones.clear();               
     gSkeleton.boneNameToIndex.clear();      
 
@@ -634,39 +643,42 @@ bool loadModel(const std::string& filename)
     // Inform input controller how many bones are available
     input.SetMaxBoneIndex(static_cast<int>(gSkeleton.bones.size()));
 
+    // Only returns true if all previous steps succeed
     return true;
 }
 
 // ------------------------- MAIN -------------------------
 int main()
 {
+
     // ----------------------------------------------------
-    // Initialize GLFW (window + input handling library)
+    // Initialize GLFW (make veiwing-window)
     // ----------------------------------------------------
     if (!glfwInit()) {
         std::cerr << "Failed to init GLFW\n";
         return -1;
     }
 
-    // Request an OpenGL 3.3 core profile context
-    // This must be done BEFORE creating the window
+    // Request an OpenGL 3.3 core profile context before creating a window
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create the application window
-    gWindow = glfwCreateWindow(1280, 720, "Bone Weight Viewer", nullptr, nullptr);
+    gWindow = glfwCreateWindow(1280, 720, "Model Viewer", nullptr, nullptr);
     if (!gWindow) {
         glfwTerminate();
         return -1;
     }
 
-    // Make the OpenGL context current for this thread
+    // Make the OpenGL context current for this window
     glfwMakeContextCurrent(gWindow);
 
     // ----------------------------------------------------
     // Initialize GLEW (loads OpenGL function pointers)
     // ----------------------------------------------------
+    
+    // Start GLEW
     glewExperimental = GL_TRUE;
     GLenum glewErr = glewInit();
     if (glewErr != GLEW_OK) {
@@ -674,17 +686,20 @@ int main()
         return -1;
     }
 
-    // Upload and draw debugging-bones
-    glGenVertexArrays(1, &gBoneVAO);
-    glGenBuffers(1, &gBoneVBO);
+    if (boneLinesMode) {
+        
+        // Upload and draw debugging-bones
+        glGenVertexArrays(1, &gBoneVAO);
+        glGenBuffers(1, &gBoneVBO);
 
-    glBindVertexArray(gBoneVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(DebugVertex) * 256, nullptr, GL_DYNAMIC_DRAW);
+        glBindVertexArray(gBoneVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(DebugVertex) * 256, nullptr, GL_DYNAMIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+    }
 
     // Clear the spurious OpenGL error caused by GLEW + core profile
     glGetError();
