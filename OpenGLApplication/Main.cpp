@@ -46,12 +46,12 @@ GLuint gBoneVAO = 0;    // Bone-buffer input VAO
 GLuint gBoneVBO = 0;    // Bone-buffer input VBO
 
 // FLAGS
-bool gUseRagdoll = true;
+bool gUseRagdoll = false; // Must also have bonelines or normalkinning true or both
 
 // The diffrent "modes" of the program
-bool weightVisMode = false;     // Activates the weight-viz mode
-bool boneLinesMode = true;     // Draws the skeleton as yellow lines
-bool normalSkinning = false;    // Normal shader for skinning
+bool weightVisMode = false;     // Activates the weight-viz mode (need to drag model)
+bool boneLinesMode = true;     // Draws the skeleton as yellow lines (can be combine w.normalSkinning)
+bool normalSkinning = true;    // Normal shader for skinning
 
 
 
@@ -688,7 +688,7 @@ int main()
 
     if (boneLinesMode) {
         
-        // Upload and draw debugging-bones
+        // Upload and draw debugging-bones, use DebugVertex
         glGenVertexArrays(1, &gBoneVAO);
         glGenBuffers(1, &gBoneVBO);
 
@@ -704,47 +704,52 @@ int main()
     // Clear the spurious OpenGL error caused by GLEW + core profile
     glGetError();
 
-    // Print some OpenGL info for sanity checking
+    // Print some OpenGL info to check OpenGL works
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
 
     // ----------------------------------------------------
-    // Global OpenGL state
+    // Global OpenGL settings
     // ----------------------------------------------------
 
     // Set the background color (dark bluish gray)
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
 
-    // Enable depth testing so triangles are properly occluded
+    // Enable depth testing so triangles are occluded
     glEnable(GL_DEPTH_TEST);
 
-    // Disable face culling temporarily to avoid winding issues
+    // Disable face culling temporarily to avoid winding issues, turned on later again
     glDisable(GL_CULL_FACE);
 
-    // ----------------------------------------------------
-    // Create and compile the shader
-    // ----------------------------------------------------
-    weightShader = new Shader(
-        "weight_visualization.vs",
-        "weight_visualization.fs"
-    );
 
-    debugLineShader = new Shader(
-        "debugLine_Shader.vs",
-        "debugLine_Shader.fs"
-    );
+    // ----------------------------------------------------
+    // Create and compile shaders
+    // ----------------------------------------------------
+    
+    if (weightVisMode) {
+        weightShader = new Shader(
+            "weight_visualization.vs",
+            "weight_visualization.fs"
+        );
+    }
 
-    skinningShader = new Shader(
-        "skinning.vs",
-        "skinning.fs"
-    );
+    if (boneLinesMode) {
+        debugLineShader = new Shader(
+            "debugLine_Shader.vs",
+            "debugLine_Shader.fs"
+        );
+    }
+
+    if (normalSkinning || boneLinesMode) {
+        skinningShader = new Shader(
+            "skinning.vs",
+            "skinning.fs"
+        );
+    }
 
     // ----------------------------------------------------
     // Load model using Assimp and build GPU buffers
     // ----------------------------------------------------
-
-    // Intitializa Bullet
-    //initBullet();
     
     // Change this to load any model in the Models folder
     std::string modelName = "boblampclean.md5mesh";
@@ -752,7 +757,7 @@ int main()
     /*
         Examples:
         * Vanguard.dae          // RIGGED (many bones, Doom 3 test model increase max-boness to 7), super large
-        * boblampclean.md5mesh  // RIGGED 
+        * boblampclean.md5mesh  // RIGGED (best for testing, may need to be rotated to be in view)
         * spider.obj            // NOT RIGGED
         * dragon.obj            // NOT RIGGED, ONE MESH
         
@@ -770,10 +775,9 @@ int main()
         return 1;
     }
 
-    // Skeleton sanity check (parent '-1' means parent is root)
+    // Check skeleton (parent '-1' means parent is root)
     printf("\nSkeleton summary:\n");
     printf("Total bones: %zu\n", gSkeleton.bones.size());
-
     for (size_t i = 0; i < gSkeleton.bones.size(); i++)
     {
         printf("Bone %zu: '%s' parent %d\n",
@@ -783,13 +787,14 @@ int main()
     }
 
     // ----------------------------------------------------
-    // Main render loop -----------------------------------
+    // Main render loop
     // ----------------------------------------------------
     while (!glfwWindowShouldClose(gWindow)) {
 
         // ------------------------------------------------
-        // Time handling (used for smooth camera movement)
+        // Time handling (used for camera movement)
         // ------------------------------------------------
+        
         float currentTime = (float)glfwGetTime();
         float deltaTime = currentTime - gLastTime;
         gLastTime = currentTime;
@@ -797,20 +802,20 @@ int main()
         // ------------------------------------------------
         // Input handling
         // ------------------------------------------------
+        
         glfwPollEvents();
 
-        // Update input controller:
-        //  - WASD moves the camera
-        //  - Arrow keys change selected bone index
+        // Update input controller based on input
         input.Update(deltaTime);
 
         // ------------------------------------------------
         // Update skeleton pose (animation / physics step)
         // ------------------------------------------------
         
-        /*if (gUseRagdoll)
+        // Currently streches model in funny way
+        if (gUseRagdoll)
         {
-            // Fake "physics" (later Bullet will go here)
+            // Fake "physics" (real physics will go here)
             float t = (float)glfwGetTime();
 
             for (PhysicsBone& pb : gPhysicsSkeleton.bones)
@@ -824,10 +829,11 @@ int main()
 
             // Apply physics result to skeleton
             applyPhysicsToSkeleton(gPhysicsSkeleton, gSkeleton);
-        }*/
+        }
 
-        // TESTING - Makes model bend over, MUST USE SKINNING SHADER or Lines (but must comment out physics)
-        if (gSkeleton.bones.size() > 1)
+        // TESTING - Makes model bend over, MUST USE SKINNING SHADER or Lines, NOT UseRagdoll
+        // Comment out for a static model
+        if ((skinningShader || boneLinesMode) && gSkeleton.bones.size() > 1)
         {
             gSkeleton.bones[1].localPose =
                 glm::rotate(glm::mat4(1.0f),
@@ -838,14 +844,19 @@ int main()
         // Rebuild transforms
         computeGlobalBoneTransforms(gSkeleton);
         buildFinalBoneMatrices(gSkeleton, gFinalBoneMatrices);
-        //uploadBoneMatrices(weightShader, gFinalBoneMatrices); // Use weight-shader
-        uploadBoneMatrices(skinningShader, gFinalBoneMatrices); // Use skinning-shader
-
+        if (weightVisMode)
+        {
+            uploadBoneMatrices(weightShader, gFinalBoneMatrices); // Use weight-shader
+        }
+        else {
+            uploadBoneMatrices(skinningShader, gFinalBoneMatrices); // Use skinning-shader
+        }
 
 
         // ------------------------------------------------
-        // Window / viewport handling
+        // Window/viewport handling
         // ------------------------------------------------
+
         int width, height;
         glfwGetFramebufferSize(gWindow, &width, &height);
         float aspect = (float)width / (float)height;
@@ -856,116 +867,137 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // ------------------------------------------------
-        // Build transformation matrices
-        // ------------------------------------------------
+        // Rebuild transformation matrices
+        // -----------------------------------------------
 
         // Model matrix (identity for now — model stays at origin)
-        // Base model transform (identity)
         glm::mat4 modelMatrix(1.0f);
 
-        // Apply mouse-driven rotation from input controller
+        // Apply drag on ,odel from input controller
         modelMatrix = input.GetModelRotationMatrix() * modelMatrix;
 
-
-        // IMPORTANT:
         // The camera matrices MUST come from the camera object.
-        // If you hard-code glm::lookAt here, camera movement will not work.
         glm::mat4 MVP =
             input.GetCamera().GetProjectionMatrix(aspect) *
             input.GetCamera().GetViewMatrix() *
             modelMatrix;
 
+        // ------------------------------------------------
+        // Rendering logic based on mode
+        // ------------------------------------------------
+        
+        // If "fake physics" is used, may be rendered using debugLine and/or skinning shader
         if (gUseRagdoll) {
+            
             // ------------------------------------------------
-            // Rendering - Bones
+            // Rendering - Bones as lines
             // ------------------------------------------------
 
-            glDisable(GL_DEPTH_TEST);
+            if (boneLinesMode) {
+                glDisable(GL_DEPTH_TEST);
 
-            std::vector<DebugVertex> boneDebugVerts;
-            buildBoneDebugLines(gSkeleton, boneDebugVerts);
+                std::vector<DebugVertex> boneDebugVerts;
+                buildBoneDebugLines(gSkeleton, boneDebugVerts);
 
-            glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
-            glBufferSubData(GL_ARRAY_BUFFER,
-                0,
-                boneDebugVerts.size() * sizeof(DebugVertex),
-                boneDebugVerts.data());
+                glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, boneDebugVerts.size() * sizeof(DebugVertex), boneDebugVerts.data());
 
-            debugLineShader->Use();
-            debugLineShader->SetMat4("MVP", MVP);
+                debugLineShader->Use();
+                debugLineShader->SetMat4("MVP", MVP);
 
-            glBindVertexArray(gBoneVAO);
-            glDrawArrays(GL_LINES, 0, (GLsizei)boneDebugVerts.size());
-            glBindVertexArray(0);
+                glBindVertexArray(gBoneVAO);
+                glDrawArrays(GL_LINES, 0, (GLsizei)boneDebugVerts.size());
+                glBindVertexArray(0);
 
-            glEnable(GL_DEPTH_TEST);
+                glEnable(GL_DEPTH_TEST);
+            }
 
-            // Physics + Skinning
-            skinningShader->Use();
-            skinningShader->SetMat4("MVP", MVP);
+            // ------------------------------------------------
+            // Rendering - Normal shader
+            // ------------------------------------------------
+            if (normalSkinning) {
+                skinningShader->Use();
+                skinningShader->SetMat4("MVP", MVP);
 
-            glBindVertexArray(gVAO);
-            glDrawElements(GL_TRIANGLES,
-                (GLsizei)gpuIndices.size(),
-                GL_UNSIGNED_INT,
-                0);
-            glBindVertexArray(0);
+                glBindVertexArray(gVAO);
+                glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
+                glBindVertexArray(0);
+            }
         }
-        else {
+        else {  // No "physics"
+            
+            // ------------------------------------------------
+            // Rendering - Bones as lines
+            // ------------------------------------------------
+            if (boneLinesMode) {
+                glDisable(GL_DEPTH_TEST);
+
+                std::vector<DebugVertex> boneDebugVerts;
+                buildBoneDebugLines(gSkeleton, boneDebugVerts);
+
+                glBindBuffer(GL_ARRAY_BUFFER, gBoneVBO);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, boneDebugVerts.size() * sizeof(DebugVertex), boneDebugVerts.data());
+
+                debugLineShader->Use();
+                debugLineShader->SetMat4("MVP", MVP);
+
+                glBindVertexArray(gBoneVAO);
+                glDrawArrays(GL_LINES, 0, (GLsizei)boneDebugVerts.size());
+                glBindVertexArray(0);
+
+                glEnable(GL_DEPTH_TEST);
+            }
+            
             // ------------------------------------------------
             // Rendering - Weights
             // ------------------------------------------------
+            if (weightVisMode) {
 
-            // Activate the shader program
-            weightShader->Use();
+                // Activate the shader program
+                weightShader->Use();
 
-            // Upload MVP matrix to the shader
-            weightShader->SetMat4("MVP", MVP);
+                // Upload MVP matrix to the shader
+                weightShader->SetMat4("MVP", MVP);
 
-            // World-space light direction (pointing *towards* model)
-            weightShader->SetVec3("uLightDir", glm::normalize(glm::vec3(7.5f, 10.0f, 1.5f)));
+                // World-space light direction
+                weightShader->SetVec3("uLightDir", glm::normalize(glm::vec3(7.5f, 10.0f, 1.5f)));
 
-            // Camera position for view-based effects later
-            weightShader->SetVec3("uViewPos", glm::vec3(0, 2, 5));
+                // Camera position
+                weightShader->SetVec3("uViewPos", glm::vec3(0, 2, 5));
 
-            // Upload currently selected bone index
-            // Used in fragment shader for weight visualization
-            weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
+                // Upload currently selected bone index
+                // Used in fragment shader for weight visualization
+                weightShader->SetInt("uSelectedBone", input.GetCurrentBoneIndex());
 
-            // Bind the VAO containing vertex + index buffers
-            glBindVertexArray(gVAO);
+                // Bind the VAO containing vertex + index buffers
+                glBindVertexArray(gVAO);
 
-            // Draw the entire mesh using indexed triangles
-            glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
+                // Draw the entire mesh using indexed triangles
+                glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
 
-            // Unbind VAO (just for clean code)
-            glBindVertexArray(0);
+                // Unbind VAO (just for clean code)
+                glBindVertexArray(0);
+
+            }
 
             // ------------------------------------------------
-            /*/ Rendering - Skinning
+            // Rendering - Normal Skinning Shader
             // ------------------------------------------------
-            skinningShader->Use();
-            skinningShader->SetMat4("MVP", MVP);
+            if (normalSkinning) {
+                skinningShader->Use();
+                skinningShader->SetMat4("MVP", MVP);
 
-            glBindVertexArray(gVAO);
-            glDrawElements(GL_TRIANGLES,
-                (GLsizei)gpuIndices.size(),
-                GL_UNSIGNED_INT,
-                0);
-            glBindVertexArray(0);*/
-
+                glBindVertexArray(gVAO);
+                glDrawElements(GL_TRIANGLES, (GLsizei)gpuIndices.size(), GL_UNSIGNED_INT, 0);
+                glBindVertexArray(0);
+            }
         }
-
         
-        // ------------------------------------------------
         // Present rendered image to the screen
-        // ------------------------------------------------
         glfwSwapBuffers(gWindow);
     }
 
-    // ----------------------------------------------------
     // Cleanup and exit
-    // ----------------------------------------------------
     glfwTerminate();
     return 0;
 }
